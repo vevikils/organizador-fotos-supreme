@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Organizador Supremo de Fotos</title>
+  <link rel="icon" type="image/png" href="icons/icon.png">
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Roboto:wght@300;400;500;700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- BARRA LATERAL (DRAWER ESTILO GOOGLE FOTOS) -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="app-brand">
+          <img src="icons/icon.png" alt="Logo" class="brand-logo-img">
+          <span class="brand-title">Fotos <span>Supreme</span></span>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <a href="#timeline" class="nav-item active" data-view="timeline" id="nav-timeline">
+          <span class="material-symbols-outlined nav-icon">photo_library</span>
+          <span class="nav-label">Fotos</span>
+        </a>
+
+        <div class="nav-group-title">EXPLORAR</div>
+        <a href="#people" class="nav-item" data-view="people" id="nav-people">
+          <span class="material-symbols-outlined nav-icon">face</span>
+          <span class="nav-label">Personas & Caras</span>
+        </a>
+        <a href="#places" class="nav-item" data-view="places" id="nav-places">
+          <span class="material-symbols-outlined nav-icon">explore</span>
+          <span class="nav-label">Lugares & Mapa</span>
+        </a>
+        <a href="#categories" class="nav-item" data-view="categories" id="nav-categories">
+          <span class="material-symbols-outlined nav-icon">category</span>
+          <span class="nav-label">Categorías</span>
+        </a>
+        <a href="#colors" class="nav-item" data-view="colors" id="nav-colors">
+          <span class="material-symbols-outlined nav-icon">palette</span>
+          <span class="nav-label">Por Colores</span>
+        </a>
+        <a href="#cameras" class="nav-item" data-view="cameras" id="nav-cameras">
+          <span class="material-symbols-outlined nav-icon">photo_camera</span>
+          <span class="nav-label">Cámaras & Móviles</span>
+        </a>
+        <a href="#nsfw" class="nav-item" data-view="nsfw" id="nav-nsfw">
+          <span class="material-symbols-outlined nav-icon">shield_with_heart</span>
+          <span class="nav-label">Contenido Sensible (IA)</span>
+          <span class="badge badge-nsfw" id="nsfw-badge" style="display:none;">0</span>
+        </a>
+
+        <div class="nav-group-title">COLECCIONES</div>
+        <a href="#favorites" class="nav-item" data-view="favorites" id="nav-favorites">
+          <span class="material-symbols-outlined nav-icon">star</span>
+          <span class="nav-label">Favoritos</span>
+        </a>
+        <a href="#albums" class="nav-item" data-view="albums" id="nav-albums">
+          <span class="material-symbols-outlined nav-icon">photo_album</span>
+          <span class="nav-label">Álbumes</span>
+        </a>
+
+        <div class="nav-group-title">HERRAMIENTAS</div>
+        <a href="#duplicates" class="nav-item" data-view="duplicates" id="nav-duplicates">
+          <span class="material-symbols-outlined nav-icon">cleaning_services</span>
+          <span class="nav-label">Limpieza & Duplicados</span>
+          <span class="badge" id="dup-badge" style="display:none;">0</span>
+        </a>
+        <a href="#folders" class="nav-item" data-view="folders" id="nav-folders">
+          <span class="material-symbols-outlined nav-icon">folder_special</span>
+          <span class="nav-label">Carpetas & Escaneo</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="storage-card">
+          <div class="storage-info">
+            <span class="material-symbols-outlined">hard_drive</span>
+            <div>
+              <div class="storage-title" id="sidebar-photo-count">0 fotos</div>
+              <div class="storage-size" id="sidebar-storage-size">0 MB indexados</div>
+            </div>
+          </div>
+          <button class="btn btn-sm btn-primary w-100" id="btn-quick-scan">
+            <span class="material-symbols-outlined">sync</span>
+            Escanear Fotos
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- CONTENIDO PRINCIPAL -->
+    <main class="main-content">
+      <header class="top-bar">
+        <button class="btn-icon mobile-menu-toggle" id="btn-mobile-menu" aria-label="Menú">
+          <span class="material-symbols-outlined">menu</span>
+        </button>
+
+        <div class="search-container">
+          <span class="material-symbols-outlined search-icon">search</span>
+          <input 
+            type="text" 
+            class="search-input" 
+            id="global-search-input" 
+            placeholder="Buscar por fecha, ciudad (ej: Madrid), cámara, categoría o color..." 
+            autocomplete="off"
+          >
+          <button class="btn-icon clear-search" id="btn-clear-search" style="display: none;" aria-label="Limpiar búsqueda">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+
+        <div class="top-controls">
+          <div class="density-selector" title="Tamaño de vista">
+            <button class="density-btn" data-density="compact" title="Cuadrícula compacta">
+              <span class="material-symbols-outlined">grid_view</span>
+            </button>
+            <button class="density-btn active" data-density="normal" title="Cuadrícula normal">
+              <span class="material-symbols-outlined">window</span>
+            </button>
+            <button class="density-btn" data-density="large" title="Cuadrícula grande">
+              <span class="material-symbols-outlined">crop_portrait</span>
+            </button>
+          </div>
+
+          <select class="sort-select" id="sort-select" title="Ordenar por">
+            <option value="date_desc">Más recientes primero</option>
+            <option value="date_asc">Más antiguas primero</option>
+            <option value="size_desc">Mayor tamaño</option>
+            <option value="name_asc">Nombre A-Z</option>
+          </select>
+
+          <!-- MODO SEGURO / CONTROL SENSITIVO -->
+          <div class="safe-mode-control" id="safe-mode-container" title="Control de Contenido Sensible e IA">
+            <button class="safe-mode-btn mode-blur" id="btn-safe-mode" data-mode="blur">
+              <span class="material-symbols-outlined safe-icon">blur_on</span>
+              <span class="safe-label">Modo Seguro: Desenfoque</span>
+              <span class="material-symbols-outlined arrow-icon">expand_more</span>
+            </button>
+            <div class="safe-mode-dropdown" id="safe-mode-dropdown">
+              <div class="safe-option active" data-mode="blur">
+                <span class="material-symbols-outlined opt-icon">blur_on</span>
+                <div class="opt-text">
+                  <strong>Desenfocar (Recomendado)</strong>
+                  <small>Cubre fotos sensibles con efecto cristal. Clic para revelar.</small>
+                </div>
+              </div>
+              <div class="safe-option" data-mode="hide">
+                <span class="material-symbols-outlined opt-icon">visibility_off</span>
+                <div class="opt-text">
+                  <strong>Ocultar de la galería</strong>
+                  <small>Solo visibles en la sección privada 'Contenido Sensible'.</small>
+                </div>
+              </div>
+              <div class="safe-option" data-mode="none">
+                <span class="material-symbols-outlined opt-icon">visibility</span>
+                <div class="opt-text">
+                  <strong>Modo Libre (Sin censura)</strong>
+                  <small>Muestra todo sin desenfoque con etiquetas IA discretas.</small>
+                </div>
+              </div>
+              <div class="safe-divider"></div>
+              <button class="safe-scan-btn" id="btn-trigger-nsfw-scan">
+                <span class="material-symbols-outlined">psychology</span>
+                <span>Analizar Fotos con IA (ViT)</span>
+              </button>
+            </div>
+          </div>
+
+          <button class="btn-icon" id="btn-theme-toggle" title="Cambiar tema">
+            <span class="material-symbols-outlined" id="theme-icon">light_mode</span>
+          </button>
+        </div>
+      </header>
+
+      <div class="filter-chips-bar" id="active-filters-bar" style="display: none;">
+        <span class="filter-label">Filtros activos:</span>
+        <div class="filter-chips-list" id="active-chips-list"></div>
+        <button class="btn-text-sm" id="btn-reset-all-filters">Limpiar todos</button>
+      </div>
+
+      <div class="views-container">
+        <!-- VISTA 1: LÍNEA DE TIEMPO -->
+        <section class="view-panel active" id="view-timeline">
+          <div class="timeline-wrapper">
+            <div class="timeline-container" id="timeline-container">
+              <div class="empty-state" id="timeline-empty" style="display: none;">
+                <span class="material-symbols-outlined empty-icon">photo_library</span>
+                <h3>No hay fotos todavía</h3>
+                <p>Comienza escaneando tus carpetas de fotos del ordenador.</p>
+                <button class="btn btn-primary" id="btn-empty-scan">
+                  <span class="material-symbols-outlined">folder_open</span>
+                  Elegir Carpeta para Escanear
+                </button>
+              </div>
+            </div>
+            <div class="timeline-scrubber" id="timeline-scrubber"></div>
+          </div>
+        </section>
+
+        <!-- VISTA PERSONAS: RECONOCIMIENTO FACIAL (IA) -->
+        <section class="view-panel" id="view-people">
+          <div class="view-header people-view-header">
+            <div>
+              <h2 class="view-title">
+                <span class="material-symbols-outlined title-icon" style="color: var(--accent-primary);">face</span>
+                Personas & Caras (IA)
+              </h2>
+              <p class="view-subtitle">Rostros detectados y agrupados automáticamente mediante Inteligencia Artificial (YuNet + SFace).</p>
+            </div>
+            <div class="view-actions">
+              <button class="btn btn-primary" id="btn-start-faces-scan">
+                <span class="material-symbols-outlined">psychology</span>
+                Escanear Personas con IA
+              </button>
+            </div>
+          </div>
+
+          <!-- Banner de progreso del escaneo facial -->
+          <div class="ai-scan-banner" id="faces-scan-banner" style="display: none;">
+            <div class="ai-scan-header">
+              <div class="ai-scan-title">
+                <span class="spinner-sm"></span>
+                <span id="faces-scan-status-text">Detectando caras con IA...</span>
+              </div>
+              <button class="btn-icon btn-sm" id="btn-stop-faces-scan" title="Detener escaneo facial">
+                <span class="material-symbols-outlined">stop</span>
+              </button>
+            </div>
+            <div class="progress-bar-container">
+              <div class="progress-bar-fill" id="faces-scan-progress-fill" style="width: 0%;"></div>
+            </div>
+            <div class="ai-scan-meta">
+              <span id="faces-scan-count-text">0 / 0 fotos</span>
+              <span id="faces-scan-file-text" class="text-truncate"></span>
+              <span id="faces-scan-percentage-text">0%</span>
+            </div>
+          </div>
+
+          <!-- Estadísticas de personas -->
+          <div class="stats-cards-grid people-stats-grid">
+            <div class="stat-card">
+              <div class="stat-value" id="stat-total-persons" style="color: var(--accent-primary);">0</div>
+              <div class="stat-label">Personas Identificadas</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="stat-total-faces" style="color: var(--success);">0</div>
+              <div class="stat-label">Caras Detectadas</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="stat-pending-faces" style="color: var(--warning);">0</div>
+              <div class="stat-label">Fotos Pendientes de Análisis</div>
+            </div>
+          </div>
+
+          <div class="people-container" id="people-grid-container"></div>
+        </section>
+
+        <!-- VISTA 2: LUGARES & MAPA -->
+        <section class="view-panel" id="view-places">
+          <div class="view-header">
+            <div>
+              <h2 class="view-title">Lugares & Ubicaciones</h2>
+              <p class="view-subtitle">Explora tus fotos mediante el mapa interactivo y por ciudades del mundo.</p>
+            </div>
+          </div>
+          <div class="places-layout">
+            <div class="map-card">
+              <div id="places-map" class="leaflet-map-container"></div>
+            </div>
+            <div class="cities-grid" id="cities-grid"></div>
+          </div>
+        </section>
+
+        <!-- VISTA 3: CATEGORÍAS -->
+        <section class="view-panel" id="view-categories">
+          <div class="view-header">
+            <div>
+              <h2 class="view-title">Categorías Inteligentes</h2>
+              <p class="view-subtitle">Fotos clasificadas automáticamente por tipo de imagen y contenido.</p>
+            </div>
+          </div>
+          <div class="categories-cards-grid" id="categories-grid"></div>
+        </section>
+
+        <!-- VISTA 4: POR COLORES -->
+        <section class="view-panel" id="view-colors">
+          <div class="view-header">
+            <div>
+              <h2 class="view-title">Explorar por Color</h2>
+              <p class="view-subtitle">Filtra tus fotos por la paleta de color dominante.</p>
+            </div>
+          </div>
+          <div class="colors-palette-grid" id="colors-grid"></div>
+        </section>
+
+        <!-- VISTA 5: CÁMARAS Y MÓVILES -->
+        <section class="view-panel" id="view-cameras">
+          <div class="view-header">
+            <div>
+              <h2 class="view-title">Dispositivos y Cámaras</h2>
+              <p class="view-subtitle">Fotos agrupadas por el modelo de cámara o smartphone utilizado.</p>
+            </div>
+          </div>
+          <div class="cameras-cards-grid" id="cameras-grid"></div>
+        </section>
+
+        <!-- VISTA 6: FAVORITOS -->
+        <section class="view-panel" id="view-favorites">
+          <div class="view-header">
+            <div>
+              <h2 class="view-title">Fotos Favoritas</h2>
+              <p class="view-subtitle">Tus recuerdos más destacados marcados con estrella.</p>
+            </div>
+          </div>
+          <div class="photo-grid-container" id="favorites-grid"></div>
+        </section>
+
+        <!-- VISTA 7: ÁLBUMES -->
+        <section class="view-panel" id="view-albums">
+          <div class="view-header flex-between">
+            <div>
+              <h2 class="view-title">Tus Álbumes</h2>
+              <p class="view-subtitle">Crea colecciones personalizadas de fotos.</p>
+            </div>
+            <button class="btn btn-primary" id="btn-create-album">
+              <span class="material-symbols-outlined">add</span>
+              Nuevo Álbum
+            </button>
+          </div>
+          <div class="albums-grid" id="albums-grid"></div>
+        </section>
+
+        <!-- VISTA 8: LIMPIEZA & DUPLICADOS -->
+        <section class="view-panel" id="view-duplicates">
+          <div class="view-header flex-between">
+            <div>
+              <h2 class="view-title">Limpieza Inteligente de Duplicados</h2>
+              <p class="view-subtitle">Identifica fotos idénticas o similares y libera espacio en disco.</p>
+            </div>
+            <div class="reclaim-banner" id="reclaim-banner">
+              <span class="material-symbols-outlined">delete_sweep</span>
+              <div>
+                <strong id="reclaim-size-text">0 MB</strong> recuperables
+              </div>
+            </div>
+          </div>
+
+          <div class="tabs-bar">
+            <button class="tab-btn active" data-dup-tab="exact">
+              Duplicados Exactos (<span id="count-exact-dups">0</span>)
+            </button>
+            <button class="tab-btn" data-dup-tab="similar">
+              Fotos Similares o Ráfagas (<span id="count-similar-dups">0</span>)
+            </button>
+          </div>
+
+          <!-- BARRA DE ACCIÓN Y SELECCIÓN EN LOTE DE DUPLICADOS -->
+          <div class="dup-toolbar glass-panel" id="dup-toolbar">
+            <div class="dup-toolbar-left">
+              <label class="dup-select-label" id="dup-select-all-label">
+                <input type="checkbox" id="dup-select-all-checkbox">
+                <span class="custom-checkbox"></span>
+                <span id="dup-select-all-text">Seleccionar todas las copias redundantes</span>
+              </label>
+              <span class="dup-selected-badge" id="dup-selected-badge" style="display: none;">0 seleccionadas</span>
+              <button class="btn btn-sm btn-ghost" id="dup-btn-deselect" style="display: none;">
+                <span class="material-symbols-outlined">close</span>
+                Deseleccionar
+              </button>
+            </div>
+            <div class="dup-toolbar-right">
+              <button class="btn btn-sm btn-outline-danger" id="dup-btn-delete-selected" style="display: none;">
+                <span class="material-symbols-outlined">delete</span>
+                <span id="dup-btn-delete-selected-text">Eliminar seleccionadas (0)</span>
+              </button>
+              <button class="btn btn-danger" id="dup-btn-clean-all">
+                <span class="material-symbols-outlined">auto_delete</span>
+                <span id="dup-btn-clean-all-text">⚡ Limpiar TODOS los duplicados</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="duplicates-container" id="duplicates-container"></div>
+
+          <div class="dup-footer" id="dup-footer" style="display: none;">
+            <span id="dup-pagination-info" style="color: var(--text-secondary); font-size: 0.85rem;">Mostrando 0 de 0 grupos</span>
+            <button class="btn btn-secondary btn-sm" id="dup-btn-load-more">
+              <span class="material-symbols-outlined">expand_more</span>
+              Cargar más grupos
+            </button>
+          </div>
+        </section>
+
+        <!-- VISTA 9: CARPETAS Y CONFIGURACIÓN -->
+        <section class="view-panel" id="view-folders">
+          <div class="view-header">
+            <div>
+              <h2 class="view-title">Carpetas Monitoreadas</h2>
+              <p class="view-subtitle">Configura qué directorios de tu ordenador se analizan para fotos.</p>
+            </div>
+          </div>
+
+          <div class="folders-manager">
+            <div class="add-folder-card">
+              <h3>Añadir Carpeta</h3>
+              <p>Selecciona cualquier carpeta o disco de tu ordenador para indexar automáticamente.</p>
+              <div class="add-folder-input-group">
+                <input type="text" id="custom-folder-path" placeholder="C:\Users\...\Imágenes" class="folder-input">
+                <button class="btn btn-secondary" id="btn-browse-folder">
+                  <span class="material-symbols-outlined">folder_open</span>
+                  Examinar...
+                </button>
+                <button class="btn btn-primary" id="btn-add-folder">
+                  <span class="material-symbols-outlined">add</span>
+                  Añadir
+                </button>
+              </div>
+            </div>
+
+            <div class="folders-list-card">
+              <h3>Carpetas en Seguimiento</h3>
+              <div class="folders-list" id="folders-list"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- VISTA NSFW: CONTENIDO SENSIBLE (IA) -->
+        <section class="view-panel" id="view-nsfw">
+          <div class="view-header nsfw-view-header">
+            <div>
+              <h2 class="view-title">
+                <span class="material-symbols-outlined title-icon" style="color: var(--primary);">shield_with_heart</span>
+                Contenido Sensible (IA)
+              </h2>
+              <p class="view-subtitle" id="nsfw-view-subtitle">Imágenes clasificadas automáticamente mediante Vision Transformer (ViT) de 'nsfw_image_detection'.</p>
+            </div>
+            <div class="view-actions">
+              <button class="btn btn-primary" id="btn-start-ai-scan">
+                <span class="material-symbols-outlined">psychology</span>
+                Escanear Todo con IA
+              </button>
+            </div>
+          </div>
+
+          <!-- Banner de progreso del escáner IA -->
+          <div class="ai-scan-banner" id="ai-scan-banner" style="display: none;">
+            <div class="ai-scan-header">
+              <div class="ai-scan-title">
+                <span class="spinner-sm"></span>
+                <span id="ai-scan-status-text">Analizando imágenes con IA...</span>
+              </div>
+              <button class="btn-icon btn-sm" id="btn-stop-ai-scan" title="Detener análisis">
+                <span class="material-symbols-outlined">stop</span>
+              </button>
+            </div>
+            <div class="progress-bar-container">
+              <div class="progress-bar-fill" id="ai-scan-progress-fill" style="width: 0%;"></div>
+            </div>
+            <div class="ai-scan-meta">
+              <span id="ai-scan-count-text">0 / 0 fotos</span>
+              <span id="ai-scan-file-text" class="text-truncate"></span>
+              <span id="ai-scan-percentage-text">0%</span>
+            </div>
+          </div>
+
+          <div class="nsfw-stats-cards" id="nsfw-stats-cards">
+            <div class="stat-card">
+              <span class="stat-num text-danger" id="stat-nsfw-total">0</span>
+              <span class="stat-desc">Fotos Sensibles</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-num text-success" id="stat-sfw-total">0</span>
+              <span class="stat-desc">Fotos Seguras (SFW)</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-num text-warning" id="stat-pending-total">0</span>
+              <span class="stat-desc">Pendientes de Análisis</span>
+            </div>
+          </div>
+
+          <div class="timeline-container" id="nsfw-grid-container"></div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <!-- MODAL VISOR LIGHTBOX -->
+  <div class="lightbox-modal" id="lightbox-modal" style="display: none;">
+    <div class="lightbox-backdrop" id="lightbox-backdrop"></div>
+    
+    <div class="lightbox-top-bar">
+      <div class="top-bar-left">
+        <button class="btn-icon-light" id="lb-btn-close" title="Cerrar (Esc)">
+          <span class="material-symbols-outlined">arrow_back</span>
+        </button>
+        <div class="lb-photo-title">
+          <span id="lb-filename">foto.jpg</span>
+          <span id="lb-date" class="lb-subdate">--</span>
+        </div>
+      </div>
+
+      <div class="top-bar-right">
+        <button class="btn-icon-light" id="lb-btn-favorite" title="Favorito (F)">
+          <span class="material-symbols-outlined" id="lb-fav-icon">star_border</span>
+        </button>
+        <button class="btn-icon-light" id="lb-btn-rotate" title="Rotar 90°">
+          <span class="material-symbols-outlined">rotate_right</span>
+        </button>
+        <button class="btn-icon-light" id="lb-btn-open-explorer" title="Abrir en Explorador de Windows">
+          <span class="material-symbols-outlined">folder_open</span>
+        </button>
+        <button class="btn-icon-light" id="lb-btn-info" title="Detalles EXIF (I)">
+          <span class="material-symbols-outlined">info</span>
+        </button>
+        <button class="btn-icon-light btn-danger-hover" id="lb-btn-delete" title="Eliminar foto">
+          <span class="material-symbols-outlined">delete</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="lightbox-body">
+      <button class="lb-nav-btn prev" id="lb-btn-prev" title="Foto anterior">
+        <span class="material-symbols-outlined">chevron_left</span>
+      </button>
+
+      <div class="lb-image-stage" id="lb-image-stage">
+        <img src="" alt="Vista previa" class="lb-main-image" id="lb-main-image">
+      </div>
+
+      <button class="lb-nav-btn next" id="lb-btn-next" title="Siguiente foto">
+        <span class="material-symbols-outlined">chevron_right</span>
+      </button>
+    </div>
+
+    <aside class="lightbox-info-drawer" id="lightbox-info-drawer">
+      <div class="drawer-header">
+        <h3>Información</h3>
+        <button class="btn-icon-light" id="lb-info-close">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+
+      <div class="drawer-content">
+        <div class="info-section">
+          <div class="info-icon-row">
+            <span class="material-symbols-outlined info-icon">calendar_month</span>
+            <div>
+              <div class="info-title" id="exif-datetime">--</div>
+              <div class="info-desc" id="exif-time-of-day">--</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="info-section">
+          <div class="info-icon-row">
+            <span class="material-symbols-outlined info-icon">image</span>
+            <div>
+              <div class="info-title" id="exif-dimensions">-- x -- px</div>
+              <div class="info-desc" id="exif-filesize">-- MB</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="info-section">
+          <div class="info-icon-row">
+            <span class="material-symbols-outlined info-icon">photo_camera</span>
+            <div>
+              <div class="info-title" id="exif-camera">Cámara desconocida</div>
+              <div class="info-desc" id="exif-lens">--</div>
+              <div class="info-badges" id="exif-exposure-badges">
+                <span class="exif-badge" id="exif-aperture">f/--</span>
+                <span class="exif-badge" id="exif-shutter">--s</span>
+                <span class="exif-badge" id="exif-focal">--mm</span>
+                <span class="exif-badge" id="exif-iso">ISO --</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="info-section" id="exif-location-section" style="display: none;">
+          <div class="info-icon-row">
+            <span class="material-symbols-outlined info-icon">location_on</span>
+            <div>
+              <div class="info-title" id="exif-location-name">--</div>
+              <div class="info-desc" id="exif-coordinates">--</div>
+            </div>
+          </div>
+          <div id="lb-mini-map" class="mini-map-container"></div>
+        </div>
+
+        <div class="info-section">
+          <div class="info-icon-row">
+            <span class="material-symbols-outlined info-icon">sell</span>
+            <div>
+              <div class="info-title">Clasificación</div>
+              <div class="tags-container">
+                <span class="tag-chip" id="exif-category-chip">Foto</span>
+                <span class="tag-chip" id="exif-color-chip">
+                  <span class="color-dot" id="exif-color-dot"></span>
+                  <span id="exif-color-name">Azul</span>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="info-section">
+          <div class="info-icon-row">
+            <span class="material-symbols-outlined info-icon">psychology</span>
+            <div style="flex:1;">
+              <div class="info-title">Detección IA (ViT)</div>
+              <div class="nsfw-badge-row" style="display:flex; align-items:center; gap:8px; margin-top:4px;">
+                <span class="badge" id="exif-nsfw-badge">SFW (Segura)</span>
+                <button class="btn btn-sm btn-secondary" id="btn-exif-toggle-nsfw" title="Cambiar clasificación">
+                  <span class="material-symbols-outlined">swap_horiz</span>
+                  Alternar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="info-section">
+          <div class="info-icon-row">
+            <span class="material-symbols-outlined info-icon">folder</span>
+            <div class="truncate-box">
+              <div class="info-title">Ubicación en disco</div>
+              <div class="info-desc truncate" id="exif-filepath" title="">--</div>
+              <button class="btn btn-sm btn-secondary mt-1" id="btn-exif-open-folder">
+                <span class="material-symbols-outlined">open_in_new</span>
+                Abrir en Windows
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- MODAL DE PROGRESO DE ESCANEO -->
+  <div class="modal-backdrop" id="scanner-modal" style="display: none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <span class="material-symbols-outlined modal-icon animate-spin" id="scan-modal-icon">sync</span>
+          <h3 id="scan-modal-title">Escaneando fotos...</h3>
+        </div>
+        <button class="btn-icon" id="btn-close-scanner-modal">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <div class="progress-bar-container">
+          <div class="progress-bar-fill" id="scan-progress-bar" style="width: 0%;"></div>
+        </div>
+        <div class="scan-stats-row">
+          <span id="scan-count-text">0 / 0 analizadas</span>
+          <span id="scan-percent-text">0%</span>
+        </div>
+        <div class="scan-current-file truncate" id="scan-current-file">
+          Preparando escaneo...
+        </div>
+        <div class="scan-counters-grid">
+          <div class="counter-box">
+            <div class="counter-value" id="scan-added-count">0</div>
+            <div class="counter-label">Añadidas</div>
+          </div>
+          <div class="counter-box">
+            <div class="counter-value" id="scan-updated-count">0</div>
+            <div class="counter-label">Actualizadas</div>
+          </div>
+          <div class="counter-box">
+            <div class="counter-value" id="scan-errors-count">0</div>
+            <div class="counter-label">Errores</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btn-pause-scan">Pausar</button>
+        <button class="btn btn-danger" id="btn-cancel-scan">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL CREAR ÁLBUM -->
+  <div class="modal-backdrop" id="album-modal" style="display: none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Nuevo Álbum</h3>
+        <button class="btn-icon" id="btn-close-album-modal">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="album-title-input">Nombre del Álbum</label>
+          <input type="text" id="album-title-input" class="form-input" placeholder="Ej: Vacaciones 2026, Familia...">
+        </div>
+        <div class="form-group">
+          <label for="album-desc-input">Descripción (Opcional)</label>
+          <textarea id="album-desc-input" class="form-input" placeholder="Descripción breve..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btn-cancel-album">Cancelar</button>
+        <button class="btn btn-primary" id="btn-save-album">Crear Álbum</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/timeline.js"></script>
+  <script src="js/lightbox.js"></script>
+  <script src="js/map.js"></script>
+  <script src="js/duplicates.js"></script>
+  <script src="js/albums.js"></script>
+  <script src="js/scanner-ui.js"></script>
+  <script src="js/nsfw.js"></script>
+  <script src="js/people.js"></script>
+  <script src="js/app.js"></script>
+
+  <!-- MODAL DE CONFIRMACIÓN DE LIMPIEZA MASIVA DE DUPLICADOS -->
+  <div class="modal-backdrop" id="modal-confirm-dup-clean" style="display: none;">
+    <div class="modal-card" style="max-width: 520px;">
+      <div class="modal-header">
+        <div class="modal-title flex-align">
+          <span class="material-symbols-outlined text-danger" style="font-size: 28px; margin-right: 10px;">auto_delete</span>
+          <h3 id="dup-modal-title">Limpieza Masiva de Duplicados</h3>
+        </div>
+        <button class="btn-icon" id="dup-modal-btn-close">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+      <div class="modal-body" style="padding: 20px;">
+        <p id="dup-modal-desc" style="color: var(--text-secondary); line-height: 1.5; margin-bottom: 16px;">
+          ¿Estás seguro de que deseas limpiar todas las copias duplicadas?
+        </p>
+        <div class="dup-clean-summary-box" style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 14px; margin-bottom: 16px;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+            <span style="color: var(--text-secondary);">Grupos analizados:</span>
+            <strong id="dup-modal-groups">0</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+            <span style="color: var(--text-secondary);">Copias redundantes a eliminar:</span>
+            <strong id="dup-modal-count" class="text-danger">0 fotos</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+            <span style="color: var(--text-secondary);">Espacio a recuperar:</span>
+            <strong id="dup-modal-size" style="color: var(--accent-success);">0 MB</strong>
+          </div>
+          <div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border-color); font-size: 0.8rem; color: var(--text-tertiary); display: flex; align-items: center; gap: 6px;">
+            <span class="material-symbols-outlined text-success" style="font-size: 18px;">verified</span>
+            <span>La foto con <strong>mayor resolución y calidad</strong> de cada grupo se conservará intacta.</span>
+          </div>
+        </div>
+        <div id="dup-modal-progress-container" style="display: none; margin-top: 12px;">
+          <div class="progress-bar-bg" style="height: 6px; border-radius: 3px; background: var(--bg-secondary); overflow: hidden;">
+            <div class="progress-bar-indeterminate" style="height: 100%; width: 50%; background: var(--accent-danger);"></div>
+          </div>
+          <p style="font-size: 0.8rem; color: var(--text-secondary); text-align: center; margin-top: 8px;">Procesando y liberando espacio...</p>
+        </div>
+      </div>
+      <div class="modal-footer flex-between" style="padding: 16px 20px; border-top: 1px solid var(--border-color);">
+        <button class="btn btn-secondary" id="dup-modal-btn-cancel">Cancelar</button>
+        <button class="btn btn-danger" id="dup-modal-btn-confirm">
+          <span class="material-symbols-outlined">delete_sweep</span>
+          <span id="dup-modal-btn-confirm-text">Sí, Limpiar Todo</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

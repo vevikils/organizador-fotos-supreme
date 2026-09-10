@@ -1,0 +1,45 @@
+# ========================================
+# DATOS PRIVADOS Y PERSONALES (NUNCA SUBIR)
+# ========================================
+# Base de datos SQLite con rutas personales, metadatos y coordenadas GPS
+data/
+data/*
+*.db
+*.db-wal
+*.db-shm
+
+# Miniaturas generadas en caché y recortes de rostros
+cache/
+cache/*
+
+# ========================================
+# DEPENDENCIAS Y ENTORNO
+# ========================================
+node_modules/
+package-lock.json
+
+# Caché de Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Registros y depuración
+*.log
+npm-debug.log*
+yarn-debug.log*
+electron_debug.log*
+launcher_run.log*
+launcher_debug.log*
+
+# Archivos de configuración local y temporales
+.env
+.env.local
+scratch/
+temp/
+tmp/
+
+# Archivos de sistema operativo
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
