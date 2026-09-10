@@ -10,6 +10,7 @@ const Timeline = {
   isLoading: false,
   hasMore: true,
   currentFilters: {},
+  hideTiny: true,
 
   init() {
     this.container = document.getElementById('timeline-container');
@@ -24,7 +25,34 @@ const Timeline = {
       this.updateScrubberOnScroll();
     });
 
+    const toggleTinyBtn = document.getElementById('btn-toggle-tiny-filter');
+    if (toggleTinyBtn) {
+      toggleTinyBtn.addEventListener('click', () => {
+        this.hideTiny = !this.hideTiny;
+        this.updateTinyFilterButton();
+        this.load(this.currentFilters);
+      });
+    }
+
     this.container.addEventListener('click', (e) => {
+      const clearAiBtn = e.target.closest('#btn-clear-ai-filter');
+      if (clearAiBtn) {
+        e.stopPropagation();
+        delete this.currentFilters.is_ai;
+        if (window.App && window.App.currentFilters) delete window.App.currentFilters.is_ai;
+        this.load(this.currentFilters);
+        return;
+      }
+
+      const clearTinyBtn = e.target.closest('#btn-clear-tiny-filter');
+      if (clearTinyBtn) {
+        e.stopPropagation();
+        delete this.currentFilters.is_tiny;
+        if (window.App && window.App.currentFilters) delete window.App.currentFilters.is_tiny;
+        this.load(this.currentFilters);
+        return;
+      }
+
       const clearYearBtn = e.target.closest('#btn-clear-year-filter');
       if (clearYearBtn) {
         e.stopPropagation();
@@ -107,6 +135,30 @@ const Timeline = {
           </div>
         </div>
       `;
+    } else if (this.currentFilters.is_ai) {
+      bannerHtml = `
+        <div class="timeline-filter-banner" id="timeline-filter-banner">
+          <div class="timeline-filter-chip" style="background: rgba(168, 85, 247, 0.15); border-color: rgba(168, 85, 247, 0.4);">
+            <span class="material-symbols-outlined" style="color: #a855f7;">auto_awesome</span>
+            <span>Generado por IA: <strong>${this.totalPhotos.toLocaleString()} fotos</strong></span>
+            <button class="btn-chip-close" id="btn-clear-ai-filter" title="Ver todas las fotos">
+              <span class="material-symbols-outlined">close</span>
+            </button>
+          </div>
+        </div>
+      `;
+    } else if (this.currentFilters.is_tiny) {
+      bannerHtml = `
+        <div class="timeline-filter-banner" id="timeline-filter-banner">
+          <div class="timeline-filter-chip" style="background: rgba(100, 116, 139, 0.15); border-color: rgba(100, 116, 139, 0.4);">
+            <span class="material-symbols-outlined" style="color: #94a3b8;">photo_size_select_small</span>
+            <span>Miniaturas & Archivos &lt; 1 KB: <strong>${this.totalPhotos.toLocaleString()} fotos</strong></span>
+            <button class="btn-chip-close" id="btn-clear-tiny-filter" title="Ver todas las fotos">
+              <span class="material-symbols-outlined">close</span>
+            </button>
+          </div>
+        </div>
+      `;
     } else if (this.currentFilters.personId) {
       bannerHtml = `
         <div class="timeline-filter-banner" id="timeline-filter-banner">
@@ -141,8 +193,14 @@ const Timeline = {
       if (safeMode === 'hide') {
         params.append('nsfw', 'safe_only');
       }
+      if (this.currentFilters.is_tiny) {
+        params.append('is_tiny', '1');
+      } else if (this.hideTiny) {
+        params.append('exclude_tiny', '1');
+      }
+
       for (const [key, val] of Object.entries(this.currentFilters)) {
-        if (val !== null && val !== undefined && val !== '') {
+        if (val !== null && val !== undefined && val !== '' && key !== 'is_tiny') {
           params.append(key, val);
         }
       }

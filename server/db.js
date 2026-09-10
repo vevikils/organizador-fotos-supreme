@@ -67,6 +67,9 @@ db.exec(`
     nsfw_label TEXT DEFAULT 'sfw',
     nsfw_checked INTEGER DEFAULT 0,
     faces_scanned INTEGER DEFAULT 0,
+    is_ai INTEGER DEFAULT 0,
+    ai_generator TEXT DEFAULT NULL,
+    is_tiny INTEGER DEFAULT 0,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
   );
 
@@ -148,6 +151,8 @@ addCol('faces_scanned', 'INTEGER DEFAULT 0');
 
 try { db.exec('CREATE INDEX IF NOT EXISTS idx_photos_nsfw ON photos(is_nsfw, nsfw_checked);'); } catch (e) {}
 try { db.exec('CREATE INDEX IF NOT EXISTS idx_photos_faces_scanned ON photos(faces_scanned);'); } catch (e) {}
+try { db.exec('CREATE INDEX IF NOT EXISTS idx_photos_is_ai ON photos(is_ai);'); } catch (e) {}
+try { db.exec('CREATE INDEX IF NOT EXISTS idx_photos_is_tiny ON photos(is_tiny);'); } catch (e) {}
 
 const countFolders = db.prepare('SELECT COUNT(*) as count FROM folders').get();
 if (countFolders.count === 0) {
@@ -262,7 +267,9 @@ const stmts = {
       COALESCE(SUM(file_size), 0) as total_size,
       COUNT(DISTINCT city) as total_locations,
       (SELECT COUNT(*) FROM photos WHERE is_favorite = 1 AND is_deleted = 0) as total_favorites,
-      (SELECT COUNT(*) FROM albums) as total_albums
+      (SELECT COUNT(*) FROM albums) as total_albums,
+      (SELECT COUNT(*) FROM photos WHERE is_ai = 1 AND is_deleted = 0) as total_ai,
+      (SELECT COUNT(*) FROM photos WHERE is_tiny = 1 AND is_deleted = 0) as total_tiny
     FROM photos 
     WHERE is_deleted = 0
   `),
@@ -584,11 +591,48 @@ function getDuplicateStats() {
   }
 }
 
+
+function getCategoryCounts() {
+  const base = db.prepare(`
+    SELECT category, COUNT(*) as count, MIN(id) as sample_photo_id
+    FROM photos 
+    WHERE is_deleted = 0 AND is_tiny = 0
+    GROUP BY category 
+    ORDER BY count DESC
+  `).all();
+
+  const aiRow = db.prepare(`
+    SELECT COUNT(*) as count, MIN(id) as sample_photo_id
+    FROM photos
+    WHERE is_deleted = 0 AND is_ai = 1
+  `).get();
+
+  const tinyRow = db.prepare(`
+    SELECT COUNT(*) as count, MIN(id) as sample_photo_id
+    FROM photos
+    WHERE is_deleted = 0 AND is_tiny = 1
+  `).get();
+
+  const categories = [];
+  if (aiRow && aiRow.count > 0) {
+    categories.push({ category: 'ai', count: aiRow.count, sample_photo_id: aiRow.sample_photo_id });
+  }
+  for (const c of base) {
+    categories.push(c);
+  }
+  if (tinyRow && tinyRow.count > 0) {
+    categories.push({ category: 'tiny', count: tinyRow.count, sample_photo_id: tinyRow.sample_photo_id });
+  }
+
+  return categories;
+}
+
 module.exports = {
   db,
   stmts,
   queryPhotos,
   findDuplicates,
+  getCategoryCounts,
   cleanAllDuplicates,
   batchDeletePhotos,
   getDuplicateStats,

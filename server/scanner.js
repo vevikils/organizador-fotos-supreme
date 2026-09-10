@@ -171,6 +171,67 @@ class PhotoScanner extends EventEmitter {
     return { thumbnailPath: thumbRelativePath, dhash, dominantColor, colorGroup };
   }
 
+    detectAi(bufferHead, exifData, fileName, filePath) {
+    const lowerName = fileName.toLowerCase();
+    const lowerPath = filePath.toLowerCase();
+
+    if (bufferHead) {
+      const headText = bufferHead.toString('latin1');
+      if (headText.includes('sd-metadata') || headText.includes('InvokeAI') || headText.includes('invoke-ai')) {
+        return { isAi: 1, generator: 'InvokeAI' };
+      }
+      if (headText.includes('prompt') && (headText.includes('sampler_name') || headText.includes('workflow') || headText.includes('node_id'))) {
+        return { isAi: 1, generator: 'ComfyUI' };
+      }
+      if (headText.includes('parameters') && (headText.includes('Steps:') || headText.includes('Sampler:') || headText.includes('CFG scale:'))) {
+        return { isAi: 1, generator: 'Stable Diffusion' };
+      }
+      if (headText.includes('NovelAI') || headText.includes('Software\x00NovelAI')) {
+        return { isAi: 1, generator: 'NovelAI' };
+      }
+      if (headText.includes('Midjourney')) {
+        return { isAi: 1, generator: 'Midjourney' };
+      }
+      if (headText.includes('DALL·E') || headText.includes('DALL-E')) {
+        return { isAi: 1, generator: 'DALL-E' };
+      }
+      if (headText.includes('Adobe Firefly')) {
+        return { isAi: 1, generator: 'Adobe Firefly' };
+      }
+    }
+
+    if (exifData) {
+      const soft = String(exifData.Software || exifData.ImageDescription || exifData.UserComment || '').toLowerCase();
+      if (soft.includes('stable diffusion') || soft.includes('automatic1111')) return { isAi: 1, generator: 'Stable Diffusion' };
+      if (soft.includes('midjourney')) return { isAi: 1, generator: 'Midjourney' };
+      if (soft.includes('dall-e') || soft.includes('dalle')) return { isAi: 1, generator: 'DALL-E' };
+      if (soft.includes('comfyui')) return { isAi: 1, generator: 'ComfyUI' };
+      if (soft.includes('invokeai') || soft.includes('invoke-ai')) return { isAi: 1, generator: 'InvokeAI' };
+      if (soft.includes('novelai')) return { isAi: 1, generator: 'NovelAI' };
+    }
+
+    if (lowerName.includes('comfyui') || lowerPath.includes('\\comfyui\\') || lowerPath.includes('/comfyui/')) {
+      return { isAi: 1, generator: 'ComfyUI' };
+    }
+    if (lowerName.includes('-k_euler') || lowerName.includes('-sd-v') || lowerName.includes('-sdxl') || lowerPath.includes('stable_diffusion')) {
+      return { isAi: 1, generator: 'Stable Diffusion' };
+    }
+    if (lowerName.includes('flux_') || lowerName.includes('_flux_')) {
+      return { isAi: 1, generator: 'Flux' };
+    }
+    if (lowerName.includes('midjourney') || lowerPath.includes('midjourney')) {
+      return { isAi: 1, generator: 'Midjourney' };
+    }
+    if (lowerName.includes('dalle') || lowerName.includes('dall-e') || lowerPath.includes('dalle')) {
+      return { isAi: 1, generator: 'DALL-E' };
+    }
+    if (lowerPath.includes('novelai') || lowerName.includes('novelai')) {
+      return { isAi: 1, generator: 'NovelAI' };
+    }
+
+    return { isAi: 0, generator: null };
+  }
+
   classifyPhoto({ fileName, width, height, aspectRatio, cameraMake, cameraModel, timeOfDay, iso, shutterSpeed }) {
     const lowerName = fileName.toLowerCase();
     const screenshotKeywords = ['screenshot', 'captura', 'screen_', 'pantalla', 'scrn', 'screencap'];
@@ -264,13 +325,17 @@ class PhotoScanner extends EventEmitter {
       fileName, width, height, aspectRatio, cameraMake, cameraModel, timeOfDay, iso, shutterSpeed
     });
 
+    const aiInfo = this.detectAi(bufferHead, exifData, fileName, filePath);
+    const isTiny = (stats.size < 1024) || (width > 0 && width <= 64 && height <= 64) || filePath.toLowerCase().includes('\\thumbnails\\') || filePath.toLowerCase().includes('/thumbnails/') ? 1 : 0;
+
     stmts.upsertPhoto.run(
       filePath, fileName, stats.size, mimeType,
       dateTaken.toISOString(), stats.mtime.toISOString(), year, month, day, hour, timeOfDay,
       width, height, aspectRatio, orientation,
       cameraMake, cameraModel, lensModel, focalLength, aperture, shutterSpeed, iso,
       latitude, longitude, altitude, city, region, country, locationName,
-      category, visuals.dominantColor, visuals.colorGroup, sha256, visuals.dhash, visuals.thumbnailPath
+      category, visuals.dominantColor, visuals.colorGroup, sha256, visuals.dhash, visuals.thumbnailPath,
+      aiInfo.isAi, aiInfo.generator, isTiny
     );
 
     return { skipped: false, isNew: !existing };

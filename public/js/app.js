@@ -78,6 +78,18 @@ const App = {
     else if (viewName === 'people') {
       if (window.PeopleView) window.PeopleView.load();
     }
+    else if (viewName === 'ai') {
+      const timelinePanel = document.getElementById('view-timeline');
+      if (timelinePanel) timelinePanel.classList.add('active');
+      this.clearAllFilters(false);
+      this.setFilter('is_ai', '1', '🤖 Generado por IA');
+    }
+    else if (viewName === 'tiny') {
+      const timelinePanel = document.getElementById('view-timeline');
+      if (timelinePanel) timelinePanel.classList.add('active');
+      this.clearAllFilters(false);
+      this.setFilter('is_tiny', '1', '🔍 Miniaturas (<1 KB)');
+    }
     else if (viewName === 'places') PlacesView.load();
     else if (viewName === 'categories') this.loadCategoriesView();
     else if (viewName === 'colors') this.loadColorsView();
@@ -106,10 +118,14 @@ const App = {
       grid.innerHTML = '';
 
       const labels = {
+        ai: { name: 'Generado por IA', icon: 'auto_awesome' },
+        tiny: { name: 'Miniaturas (<1 KB)', icon: 'photo_size_select_small' },
         photo: { name: 'Fotografías Estándar', icon: 'image' },
         screenshot: { name: 'Capturas de Pantalla', icon: 'screenshot' },
         panorama: { name: 'Panorámicas', icon: 'panorama' },
-        portrait: { name: 'Retratos', icon: 'portrait' }
+        portrait: { name: 'Retratos', icon: 'portrait' },
+        night: { name: 'Fotografía Nocturna', icon: 'bedtime' },
+        document: { name: 'Documentos & Recibos', icon: 'description' }
       };
 
       for (const cat of categories) {
@@ -127,7 +143,13 @@ const App = {
           </div>
         `;
         card.addEventListener('click', () => {
-          this.setFilter('category', cat.category, info.name);
+          if (cat.category === 'ai') {
+            this.setFilter('is_ai', '1', info.name);
+          } else if (cat.category === 'tiny') {
+            this.setFilter('is_tiny', '1', info.name);
+          } else {
+            this.setFilter('category', cat.category, info.name);
+          }
           this.switchView('timeline');
         });
         grid.appendChild(card);
@@ -354,6 +376,26 @@ const App = {
           dupBadge.style.display = 'inline-block';
         } else {
           dupBadge.style.display = 'none';
+        }
+      }
+
+      const aiBadge = document.getElementById('ai-badge');
+      if (aiBadge) {
+        if (data.total_ai && data.total_ai > 0) {
+          aiBadge.textContent = data.total_ai.toLocaleString();
+          aiBadge.style.display = 'inline-block';
+        } else {
+          aiBadge.style.display = 'none';
+        }
+      }
+
+      const tinyBadge = document.getElementById('tiny-badge');
+      if (tinyBadge) {
+        if (data.total_tiny && data.total_tiny > 0) {
+          tinyBadge.textContent = data.total_tiny.toLocaleString();
+          tinyBadge.style.display = 'inline-block';
+        } else {
+          tinyBadge.style.display = 'none';
         }
       }
 

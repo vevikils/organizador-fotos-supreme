@@ -193,6 +193,26 @@ const Lightbox = {
         nsfwBadge.style.color = 'var(--text-secondary)';
       }
     }
+
+    const aiBadge = document.getElementById('exif-ai-badge');
+    if (aiBadge) {
+      if (photo.is_ai === 1) {
+        aiBadge.textContent = `🤖 Hecho por IA (${photo.ai_generator || 'AI'})`;
+        aiBadge.style.display = 'inline-block';
+      } else {
+        aiBadge.style.display = 'none';
+      }
+    }
+
+    const tinyBadge = document.getElementById('exif-tiny-badge');
+    if (tinyBadge) {
+      if (photo.is_tiny === 1) {
+        tinyBadge.textContent = '🔍 Miniatura (<1 KB)';
+        tinyBadge.style.display = 'inline-block';
+      } else {
+        tinyBadge.style.display = 'none';
+      }
+    }
   },
 
   renderMiniMap(lat, lon) {

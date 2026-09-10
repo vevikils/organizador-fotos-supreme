@@ -5,7 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const { exec } = require('child_process');
 
-const { db, stmts, queryPhotos, findDuplicates, cleanAllDuplicates, batchDeletePhotos, getDuplicateStats } = require('./db');
+const { db, stmts, queryPhotos, findDuplicates, cleanAllDuplicates, batchDeletePhotos, getDuplicateStats, getCategoryCounts } = require('./db');
 const { scanner } = require('./scanner');
 const nsfwManager = require('./nsfw_manager');
 const facesManager = require('./faces_manager');
@@ -35,7 +35,8 @@ router.get('/photos', (req, res) => {
   try {
     const {
       limit = 80, offset = 0, year, month, category, color, camera,
-      city, country, search, favorite, albumId, personId, sort, nsfw
+      city, country, search, favorite, albumId, personId, sort, nsfw,
+      is_ai, is_tiny, exclude_tiny
     } = req.query;
 
     const result = queryPhotos({
@@ -53,7 +54,10 @@ router.get('/photos', (req, res) => {
       albumId: albumId ? parseInt(albumId, 10) : null,
       personId: personId ? parseInt(personId, 10) : null,
       sort,
-      nsfwFilter: nsfw || 'all'
+      nsfwFilter: nsfw || 'all',
+      isAi: is_ai,
+      isTiny: is_tiny,
+      excludeTiny: exclude_tiny === '1' || exclude_tiny === 'true'
     });
     res.json(result);
   } catch (err) {
@@ -150,7 +154,7 @@ router.get('/explore/locations', (req, res) => {
 
 router.get('/explore/categories', (req, res) => {
   try {
-    res.json({ categories: stmts.getCategories.all() });
+    res.json({ categories: getCategoryCounts ? getCategoryCounts() : stmts.getCategories.all() });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
