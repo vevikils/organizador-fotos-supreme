@@ -18,6 +18,16 @@ const Lightbox = {
     document.getElementById('lb-btn-next').addEventListener('click', () => this.next());
     document.getElementById('lb-btn-close').addEventListener('click', () => this.close());
     document.getElementById('lightbox-backdrop').addEventListener('click', () => this.close());
+    const enhanceBtn = document.getElementById('lb-btn-enhance');
+    if (enhanceBtn) {
+      enhanceBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const photo = this.photos[this.currentIndex];
+        if (photo && window.enhancer) {
+          window.enhancer.openModal(photo);
+        }
+      });
+    }
     document.getElementById('lb-btn-favorite').addEventListener('click', () => this.toggleFavorite());
     document.getElementById('lb-btn-rotate').addEventListener('click', () => this.rotate());
     document.getElementById('lb-btn-info').addEventListener('click', () => this.toggleInfoDrawer());

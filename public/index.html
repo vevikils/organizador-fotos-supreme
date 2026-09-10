@@ -69,6 +69,10 @@
         </a>
 
         <div class="nav-group-title">HERRAMIENTAS</div>
+        <a href="#low-res" class="nav-item" data-view="low-res" id="nav-low-res">
+          <span class="material-symbols-outlined nav-icon">auto_fix_high</span>
+          <span class="nav-label">Mejora de Fotos IA</span>
+        </a>
         <a href="#duplicates" class="nav-item" data-view="duplicates" id="nav-duplicates">
           <span class="material-symbols-outlined nav-icon">cleaning_services</span>
           <span class="nav-label">Limpieza & Duplicados</span>
@@ -513,7 +517,11 @@
       </div>
 
       <div class="top-bar-right">
-        <button class="btn-icon-light" id="lb-btn-favorite" title="Favorito (F)">
+                  <button class="btn-enhance-light" id="lb-btn-enhance" title="Restaurar y Mejorar Calidad con IA">
+            <span class="material-symbols-outlined">auto_fix_high</span>
+            <span>Mejorar IA</span>
+          </button>
+          <button class="btn-icon-light" id="lb-btn-favorite" title="Favorito (F)">
           <span class="material-symbols-outlined" id="lb-fav-icon">star_border</span>
         </button>
         <button class="btn-icon-light" id="lb-btn-rotate" title="Rotar 90°">
@@ -731,6 +739,7 @@
   <script src="js/scanner-ui.js"></script>
   <script src="js/nsfw.js"></script>
   <script src="js/people.js"></script>
+  <script src="js/enhancer.js"></script>
   <script src="js/app.js"></script>
 
   <!-- MODAL DE CONFIRMACIÓN DE LIMPIEZA MASIVA DE DUPLICADOS -->
@@ -780,6 +789,203 @@
           <span class="material-symbols-outlined">delete_sweep</span>
           <span id="dup-modal-btn-confirm-text">Sí, Limpiar Todo</span>
         </button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- MODAL DE MEJORA Y RESTAURACIÓN DE FOTOS POR IA -->
+  <div class="modal-backdrop" id="modal-ai-enhance" style="display: none;">
+    <div class="modal-dialog enhance-modal-dialog">
+      <div class="modal-header enhance-modal-header">
+        <div class="enhance-header-title">
+          <span class="material-symbols-outlined enhance-icon">auto_fix_high</span>
+          <div>
+            <h3>Mejora y Restauración de Fotos con IA</h3>
+            <p class="enhance-subtitle">Super-Resolución Real-ESRGAN v3 & Restauración de Fotos Antiguas</p>
+          </div>
+        </div>
+        <button class="btn-icon" id="btn-enhance-close" title="Cerrar">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+
+      <div class="modal-body enhance-modal-body">
+        <!-- PANEL LATERAL DE OPCIONES -->
+        <div class="enhance-sidebar">
+          <!-- Información de la imagen -->
+          <div class="enhance-card">
+            <div class="enhance-card-title">Foto Original</div>
+            <div class="enhance-info-grid">
+              <div class="enhance-info-item">
+                <span class="label">Resolución:</span>
+                <span class="value" id="enh-orig-res">-- x --</span>
+              </div>
+              <div class="enhance-info-item">
+                <span class="label">Megapíxeles:</span>
+                <span class="value" id="enh-orig-mp">-- MP</span>
+              </div>
+              <div class="enhance-info-item">
+                <span class="label">Objetivo:</span>
+                <span class="value highlight" id="enh-target-res">-- x --</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Factor de Aumento -->
+          <div class="enhance-card">
+            <div class="enhance-card-title">Factor de Escalado</div>
+            <div class="enhance-scale-options">
+              <label class="enhance-scale-pill active">
+                <input type="radio" name="enhance-scale" value="4" checked>
+                <div class="pill-body">
+                  <span class="pill-badge">4x Ultra HD</span>
+                  <span class="pill-desc">Máxima nitidez (Recomendado)</span>
+                </div>
+              </label>
+              <label class="enhance-scale-pill">
+                <input type="radio" name="enhance-scale" value="2">
+                <div class="pill-body">
+                  <span class="pill-badge">2x HD Rápido</span>
+                  <span class="pill-desc">Duplica resolución</span>
+                </div>
+              </label>
+              <label class="enhance-scale-pill">
+                <input type="radio" name="enhance-scale" value="1">
+                <div class="pill-body">
+                  <span class="pill-badge">1x Sin Agrandar</span>
+                  <span class="pill-desc">Solo restaurar ruido y color</span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- Opciones de Restauración Vintage -->
+          <div class="enhance-card">
+            <div class="enhance-card-title">Opciones de Restauración</div>
+            <div class="enhance-toggles">
+              <label class="enhance-switch-row">
+                <input type="checkbox" id="enh-opt-color" checked>
+                <div class="switch-content">
+                  <span class="switch-title">🎨 Revivir Color y Contraste</span>
+                  <span class="switch-desc">Elimina tonos amarillentos/sepia y expande rango dinámico</span>
+                </div>
+              </label>
+
+              <label class="enhance-switch-row">
+                <input type="checkbox" id="enh-opt-denoise" checked>
+                <div class="switch-content">
+                  <span class="switch-title">🧹 Reducción de Ruido / Grano</span>
+                  <span class="switch-desc">Suprime grano fotográfico analógico y compresión</span>
+                </div>
+              </label>
+
+              <label class="enhance-switch-row">
+                <input type="checkbox" id="enh-opt-unsharp" checked>
+                <div class="switch-content">
+                  <span class="switch-title">🔍 Nitidez y Texturas</span>
+                  <span class="switch-desc">Acentúa micro-detalles en ropa, ojos y contornos</span>
+                </div>
+              </label>
+
+              <label class="enhance-switch-row">
+                <input type="checkbox" id="enh-opt-face" checked>
+                <div class="switch-content">
+                  <span class="switch-title">👤 Enfoque Facial Inteligente</span>
+                  <span class="switch-desc">Detecta rostros con YuNet y refina sus rasgos</span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- Botón de Iniciar -->
+          <button id="btn-start-enhance" class="btn-primary btn-enhance-action">
+            <span class="material-symbols-outlined">auto_fix_high</span>
+            <span>Iniciar Mejora con IA</span>
+          </button>
+        </div>
+
+        <!-- ÁREA DE VISTA PREVIA / PROCESO / COMPARADOR -->
+        <div class="enhance-stage">
+          <!-- ESTADO INICIAL -->
+          <div id="enhance-view-initial" class="enhance-stage-view">
+            <div class="enhance-initial-box">
+              <img id="enh-initial-preview" src="" alt="Vista previa">
+              <div class="enhance-initial-overlay">
+                <span class="material-symbols-outlined">magic_button</span>
+                <p>Configura las opciones en el lateral y presiona <strong>Iniciar Mejora con IA</strong></p>
+              </div>
+            </div>
+          </div>
+
+          <!-- ESTADO PROCESANDO -->
+          <div id="enhance-view-loading" class="enhance-stage-view" style="display: none;">
+            <div class="enhance-spinner-box">
+              <div class="enhance-pulse-ring"></div>
+              <span class="material-symbols-outlined enhance-spin-icon">auto_awesome</span>
+              <h4 id="enh-status-title">Restaurando fotografía con IA...</h4>
+              <p id="enh-status-step">Analizando imagen y aplicando filtros...</p>
+              <div class="enhance-progress-container">
+                <div class="enhance-progress-bar" id="enh-progress-bar" style="width: 10%;"></div>
+              </div>
+              <span class="enhance-progress-percent" id="enh-progress-text">10%</span>
+            </div>
+          </div>
+
+          <!-- ESTADO COMPARADOR ANTES / DESPUÉS -->
+          <div id="enhance-view-compare" class="enhance-stage-view" style="display: none;">
+            <div class="compare-slider-box" id="compare-slider-box">
+              <!-- Capa Después (Mejorada por IA) -->
+              <img id="enh-img-after" class="compare-img compare-after" src="" alt="Mejorada con IA">
+              <div class="compare-badge badge-after">✨ Mejorada con IA</div>
+
+              <!-- Capa Antes (Original) -->
+              <div class="compare-before-wrapper" id="compare-before-wrapper">
+                <img id="enh-img-before" class="compare-img compare-before" src="" alt="Foto Original">
+                <div class="compare-badge badge-before">📷 Original</div>
+              </div>
+
+              <!-- Divisor deslizable -->
+              <div class="compare-divider" id="compare-divider" style="left: 50%;">
+                <div class="compare-handle">
+                  <span class="material-symbols-outlined">drag_indicator</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Métricas -->
+            <div class="enhance-metrics-bar">
+              <span class="metric-pill" id="enh-metric-res">📏 -- ➔ --</span>
+              <span class="metric-pill" id="enh-metric-scale">✨ 4x Super-Resolución</span>
+              <span class="metric-pill" id="enh-metric-time">⏱️ --s</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FOOTER -->
+      <div class="modal-footer enhance-modal-footer" id="enhance-modal-footer">
+        <div class="footer-left">
+          <button class="btn-secondary" id="btn-enh-reconfigure" style="display: none;">
+            <span class="material-symbols-outlined">tune</span>
+            <span>Ajustar Opciones</span>
+          </button>
+        </div>
+        <div class="footer-right">
+          <button class="btn-secondary" id="btn-enh-cancel">Cerrar</button>
+          <button class="btn-secondary" id="btn-enh-download" style="display: none;">
+            <span class="material-symbols-outlined">download</span>
+            <span>Descargar</span>
+          </button>
+          <button class="btn-warning-soft" id="btn-enh-replace" style="display: none;">
+            <span class="material-symbols-outlined">swap_horiz</span>
+            <span>Reemplazar Original</span>
+          </button>
+          <button class="btn-primary" id="btn-enh-save-copy" style="display: none;">
+            <span class="material-symbols-outlined">save</span>
+            <span>Guardar como Copia Nueva (HD)</span>
+          </button>
+        </div>
       </div>
     </div>
   </div>

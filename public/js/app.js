@@ -90,6 +90,12 @@ const App = {
       this.clearAllFilters(false);
       this.setFilter('is_tiny', '1', '🔍 Miniaturas (<1 KB)');
     }
+    else if (viewName === 'low-res') {
+      const timelinePanel = document.getElementById('view-timeline');
+      if (timelinePanel) timelinePanel.classList.add('active');
+      this.clearAllFilters(false);
+      this.setFilter('max_res', '1280', '🪄 Fotos para Mejorar con IA');
+    }
     else if (viewName === 'places') PlacesView.load();
     else if (viewName === 'categories') this.loadCategoriesView();
     else if (viewName === 'colors') this.loadColorsView();

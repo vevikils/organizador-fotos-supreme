@@ -336,7 +336,7 @@ const stmts = {
 function queryPhotos({
   limit = 100, offset = 0, year = null, month = null, category = null,
   color = null, camera = null, city = null, country = null, search = null,
-  favorite = false, albumId = null, personId = null, sort = 'date_desc', nsfwFilter = 'all'
+  favorite = false, albumId = null, personId = null, sort = 'date_desc', nsfwFilter = 'all', is_ai = null, is_tiny = null, exclude_tiny = false, max_res = null
 } = {}) {
   const conditions = ['is_deleted = 0'];
   const params = [];
@@ -366,6 +366,11 @@ function queryPhotos({
   if (albumId) {
     conditions.push('id IN (SELECT photo_id FROM album_photos WHERE album_id = ?)');
     params.push(Number(albumId));
+  }
+  
+  if (max_res !== null && max_res !== undefined && max_res !== '') {
+    conditions.push('width > 0 AND height > 0 AND (width <= ? OR height <= ?)');
+    params.push(Number(max_res), Number(max_res));
   }
   if (search && search.trim() !== '') {
     const s = `%${search.trim()}%`;

@@ -147,6 +147,18 @@ const Timeline = {
           </div>
         </div>
       `;
+    } else if (this.currentFilters.max_res) {
+      bannerHtml = `
+        <div class="timeline-filter-banner" id="timeline-filter-banner">
+          <div class="timeline-filter-chip" style="background: rgba(147, 51, 234, 0.15); border-color: rgba(147, 51, 234, 0.4);">
+            <span class="material-symbols-outlined" style="color: #c084fc;">auto_fix_high</span>
+            <span>Fotos para Mejorar con IA: <strong>${this.totalPhotos.toLocaleString()} fotos</strong></span>
+            <button class="btn-chip-close" id="btn-clear-maxres-filter" title="Ver todas las fotos">
+              <span class="material-symbols-outlined">close</span>
+            </button>
+          </div>
+        </div>
+      `;
     } else if (this.currentFilters.is_tiny) {
       bannerHtml = `
         <div class="timeline-filter-banner" id="timeline-filter-banner">

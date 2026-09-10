@@ -9,6 +9,7 @@ const { db, stmts, queryPhotos, findDuplicates, cleanAllDuplicates, batchDeleteP
 const { scanner } = require('./scanner');
 const nsfwManager = require('./nsfw_manager');
 const facesManager = require('./faces_manager');
+const enhancerManager = require('./enhancer_manager');
 
 const router = express.Router();
 
@@ -36,7 +37,7 @@ router.get('/photos', (req, res) => {
     const {
       limit = 80, offset = 0, year, month, category, color, camera,
       city, country, search, favorite, albumId, personId, sort, nsfw,
-      is_ai, is_tiny, exclude_tiny
+      is_ai, is_tiny, exclude_tiny, max_res
     } = req.query;
 
     const result = queryPhotos({
@@ -456,4 +457,87 @@ router.get('/photos/:id/faces', (req, res) => {
   }
 });
 
+
+// ==========================================
+// RESTAURADOR Y MEJORADOR DE FOTOS POR IA
+// ==========================================
+
+router.post('/photos/:id/enhance', (req, res) => {
+  try {
+    const photo = stmts.getPhotoById.get(req.params.id);
+    if (!photo) return res.status(404).json({ error: 'Foto no encontrada' });
+    
+    const { scale = 4, color_restore = true, denoise = true, unsharp = true, face_enhance = true } = req.body || {};
+    const job = enhancerManager.startEnhance({
+      photoId: photo.id,
+      filePath: photo.file_path,
+      scale: parseInt(scale) || 4,
+      color_restore: !!color_restore,
+      denoise: !!denoise,
+      unsharp: !!unsharp,
+      face_enhance: !!face_enhance
+    });
+
+    res.json({ success: true, jobId: job.jobId, status: job.status });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.get('/enhance/status/:jobId', (req, res) => {
+  const job = enhancerManager.getJob(req.params.jobId);
+  if (!job) return res.status(404).json({ error: 'Trabajo no encontrado' });
+  res.json({
+    jobId: job.jobId,
+    photoId: job.photoId,
+    status: job.status,
+    progress: job.progress,
+    step: job.step,
+    error: job.error,
+    result: job.result
+  });
+});
+
+router.get('/enhance/preview/:filename', (req, res) => {
+  const filename = path.basename(req.params.filename);
+  const filePath = path.join(__dirname, '..', 'cache', 'enhanced', filename);
+  if (!fs.existsSync(filePath)) return res.status(404).send('Preview no encontrado');
+  res.sendFile(filePath);
+});
+
+router.post('/photos/:id/save-enhanced', async (req, res) => {
+  try {
+    const { jobId, mode = 'copy' } = req.body;
+    const result = await enhancerManager.saveEnhancedPhoto({
+      photoId: req.params.id,
+      jobId,
+      mode
+    });
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.get('/photos/low-res/candidates', (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 60;
+    const offset = parseInt(req.query.offset) || 0;
+    const photos = db.prepare(`
+      SELECT * FROM photos 
+      WHERE is_tiny = 0 AND width > 0 AND height > 0 AND (width <= 1280 OR height <= 1280)
+      ORDER BY (width * height) ASC 
+      LIMIT ? OFFSET ?
+    `).all(limit, offset);
+    const count = db.prepare(`
+      SELECT COUNT(*) as total FROM photos 
+      WHERE is_tiny = 0 AND width > 0 AND height > 0 AND (width <= 1280 OR height <= 1280)
+    `).get();
+    res.json({ photos, total: count ? count.total : photos.length });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 module.exports = router;
+
