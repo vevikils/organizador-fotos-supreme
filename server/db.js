@@ -60,14 +60,16 @@ function buildStatements(eng) {
         width, height, aspect_ratio, orientation,
         camera_make, camera_model, lens_model, focal_length, aperture, shutter_speed, iso,
         latitude, longitude, altitude, city, region, country, location_name,
-        category, dominant_color, color_group, sha256, dhash, thumbnail_path
+        category, dominant_color, color_group, sha256, dhash, thumbnail_path,
+        is_ai, ai_generator, is_tiny
       ) VALUES (
         ?, ?, ?, ?,
         ?, ?, ?, ?, ?, ?, ?,
         ?, ?, ?, ?,
         ?, ?, ?, ?, ?, ?, ?,
         ?, ?, ?, ?, ?, ?, ?,
-        ?, ?, ?, ?, ?, ?
+        ?, ?, ?, ?, ?, ?,
+        ?, ?, ?
       )
       ON CONFLICT(file_path) DO UPDATE SET
         date_modified = excluded.date_modified,
@@ -82,7 +84,10 @@ function buildStatements(eng) {
         dominant_color = excluded.dominant_color,
         color_group = excluded.color_group,
         dhash = excluded.dhash,
-        thumbnail_path = COALESCE(excluded.thumbnail_path, photos.thumbnail_path)
+        thumbnail_path = COALESCE(excluded.thumbnail_path, photos.thumbnail_path),
+        is_ai = excluded.is_ai,
+        ai_generator = excluded.ai_generator,
+        is_tiny = excluded.is_tiny
     `),
 
     getPhotoById: eng.prepare('SELECT * FROM photos WHERE id = ? AND is_deleted = 0'),

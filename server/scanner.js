@@ -265,8 +265,9 @@ class PhotoScanner extends EventEmitter {
     }
 
     let width = 0, height = 0, mimeType = `image/${ext.replace('.', '')}`;
+    let bufferHead = null;
     try {
-      const bufferHead = Buffer.alloc(32768);
+      bufferHead = Buffer.alloc(32768);
       const fd = await fs.promises.open(filePath, 'r');
       await fd.read(bufferHead, 0, 32768, 0);
       await fd.close();
