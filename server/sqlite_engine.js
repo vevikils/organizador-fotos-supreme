@@ -24,6 +24,7 @@ class SqlEngine {
     this.SQL = SQL;
     this.dirty = false;
     this.saveTimeout = null;
+    this.epoch = 0;
 
     if (fs.existsSync(dbPath)) {
       try {
@@ -56,37 +57,89 @@ class SqlEngine {
   }
 
   prepare(sql) {
-    const rawStmt = this.rawDb.prepare(sql);
     const engine = this;
+    let rawStmt = null;
+    let stmtEpoch = -1;
+
+    function getStmt() {
+      if (!rawStmt || stmtEpoch !== engine.epoch) {
+        rawStmt = engine.rawDb.prepare(sql);
+        stmtEpoch = engine.epoch;
+      }
+      return rawStmt;
+    }
 
     return {
       get(...args) {
-        const params = engine._normalizeParams(args);
-        rawStmt.bind(params);
-        let result = undefined;
-        if (rawStmt.step()) {
-          result = rawStmt.getAsObject();
+        for (let attempt = 0; attempt < 2; attempt++) {
+          try {
+            const stmt = getStmt();
+            const params = engine._normalizeParams(args);
+            stmt.bind(params);
+            let result = undefined;
+            if (stmt.step()) {
+              result = stmt.getAsObject();
+            }
+            stmt.reset();
+            return result;
+          } catch (err) {
+            const isClosed = (typeof err === 'string' && err.includes('Statement closed')) ||
+                             (err && err.message && err.message.includes('Statement closed'));
+            if (isClosed && attempt === 0) {
+              rawStmt = null;
+              stmtEpoch = -1;
+              continue;
+            }
+            throw err;
+          }
         }
-        rawStmt.reset();
-        return result;
       },
 
       all(...args) {
-        const params = engine._normalizeParams(args);
-        rawStmt.bind(params);
-        const rows = [];
-        while (rawStmt.step()) {
-          rows.push(rawStmt.getAsObject());
+        for (let attempt = 0; attempt < 2; attempt++) {
+          try {
+            const stmt = getStmt();
+            const params = engine._normalizeParams(args);
+            stmt.bind(params);
+            const rows = [];
+            while (stmt.step()) {
+              rows.push(stmt.getAsObject());
+            }
+            stmt.reset();
+            return rows;
+          } catch (err) {
+            const isClosed = (typeof err === 'string' && err.includes('Statement closed')) ||
+                             (err && err.message && err.message.includes('Statement closed'));
+            if (isClosed && attempt === 0) {
+              rawStmt = null;
+              stmtEpoch = -1;
+              continue;
+            }
+            throw err;
+          }
         }
-        rawStmt.reset();
-        return rows;
       },
 
       run(...args) {
-        const params = engine._normalizeParams(args);
-        rawStmt.bind(params);
-        rawStmt.step();
-        rawStmt.reset();
+        for (let attempt = 0; attempt < 2; attempt++) {
+          try {
+            const stmt = getStmt();
+            const params = engine._normalizeParams(args);
+            stmt.bind(params);
+            stmt.step();
+            stmt.reset();
+            break;
+          } catch (err) {
+            const isClosed = (typeof err === 'string' && err.includes('Statement closed')) ||
+                             (err && err.message && err.message.includes('Statement closed'));
+            if (isClosed && attempt === 0) {
+              rawStmt = null;
+              stmtEpoch = -1;
+              continue;
+            }
+            throw err;
+          }
+        }
 
         const changes = engine.rawDb.getRowsModified();
         let lastInsertRowid = 0;
@@ -118,7 +171,7 @@ class SqlEngine {
     if (this.saveTimeout) clearTimeout(this.saveTimeout);
     this.saveTimeout = setTimeout(() => {
       this.save();
-    }, 1000);
+    }, 3000);
   }
 
   save() {
@@ -128,6 +181,7 @@ class SqlEngine {
     }
     if (!this.dirty) return;
     try {
+      this.epoch++;
       const data = this.rawDb.export();
       const dir = path.dirname(this.dbPath);
       if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });

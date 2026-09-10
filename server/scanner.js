@@ -372,6 +372,7 @@ class PhotoScanner extends EventEmitter {
           if (result.isNew) this.currentStats.added++;
           else if (!result.skipped) this.currentStats.updated++;
         } catch (err) {
+          console.error(`[Scanner Error en ${path.basename(file)}]:`, err ? (err.message || err) : 'desconocido');
           this.currentStats.errors++;
         }
 
