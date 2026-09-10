@@ -2,57 +2,66 @@
 
 > **Tu propia alternativa privada, local y ultra-rápida a Google Fotos para escritorio con Inteligencia Artificial.**
 
+[![GitHub Release](https://img.shields.io/github/v/release/vevikils/organizador-fotos-supreme?color=purple&label=Versi%C3%B3n)](https://github.com/vevikils/organizador-fotos-supreme/releases/latest)
+[![Windows](https://img.shields.io/badge/Plataforma-Windows%2010%20%2F%2011-blue)](https://github.com/vevikils/organizador-fotos-supreme/releases)
+[![License: MIT](https://img.shields.io/badge/Licencia-MIT-green.svg)](LICENSE)
+
+Organizador Supremo de Fotos es una aplicación de escritorio nativa desarrollada con **Electron**, **Node.js (Express + SQLite)** y modelos de **Visión por Computador con IA (PyTorch, OpenCV Zoo, Real-ESRGAN)** que indexa, organiza y analiza tu biblioteca fotográfica de forma 100% local, sin subir ninguna foto a servidores externos ni depender de suscripciones en la nube.
+
+---
+
 ## 📥 Descarga para Windows (.exe)
 
-Puedes descargar la aplicación directamente lista para usar sin necesidad de instalar Node.js:
+Si solo quieres usar la aplicación en tu ordenador, **no necesitas instalar Node.js ni usar la consola**:
 
-| Tipo | Archivo | Descripción |
-| :--- | :--- | :--- |
-| 🚀 **Instalador (Recomendado)** | [**Organizador-Supremo-de-Fotos-Setup-1.0.0.exe**](https://github.com/vevikils/organizador-fotos-supreme/releases/download/v1.0.0/Organizador-Supremo-de-Fotos-Setup-1.0.0.exe) | Asistente de instalación de Windows con accesos directos en Escritorio y Menú Inicio. |
-| 🎒 **Versión Portable** | [**Organizador-Supremo-de-Fotos-1.0.0-Portable.exe**](https://github.com/vevikils/organizador-fotos-supreme/releases/download/v1.0.0/Organizador-Supremo-de-Fotos-1.0.0-Portable.exe) | Ejecutable único sin instalación; ejecútalo directamente desde cualquier carpeta o pendrive. |
+| Tipo de Descarga | Archivo | Tamaño | Descripción |
+| :--- | :--- | :--- | :--- |
+| 🚀 **Instalador Oficial (Recomendado)** | [**Organizador-Supremo-de-Fotos-Setup-1.0.0.exe**](https://github.com/vevikils/organizador-fotos-supreme/releases/download/v1.0.0/Organizador-Supremo-de-Fotos-Setup-1.0.0.exe) | ~120 MB | Asistente de instalación estándar de Windows con accesos directos en Escritorio y Menú Inicio. |
+| 🎒 **Versión Portable** | [**Organizador-Supremo-de-Fotos-1.0.0-Portable.exe**](https://github.com/vevikils/organizador-fotos-supreme/releases/download/v1.0.0/Organizador-Supremo-de-Fotos-1.0.0-Portable.exe) | ~120 MB | Ejecutable único sin instalación; ejecútalo directamente desde cualquier carpeta o pendrive. |
 
 👉 **[Ver todas las versiones en GitHub Releases](https://github.com/vevikils/organizador-fotos-supreme/releases)**
 
 ---
 
-Organizador Supremo de Fotos es una aplicación de escritorio moderna desarrollada con **Electron**, **Node.js (Express + SQLite)** y modelos de **Visión por Computador con IA (PyTorch, OpenCV Zoo)** que indexa, organiza y analiza tu biblioteca fotográfica de forma 100% local, sin subir ninguna foto a servidores externos ni depender de suscripciones en la nube.
-
----
-
 ## ✨ Características Principales
+
+### 🪄 Restauración y Super-Resolución de Fotos Antiguas por IA
+- **Escalado Neuronal 4x y 2x Ultra HD**: Reconstrucción de bordes y texturas con **Real-ESRGAN v3 Compact ONNX**.
+- **Filtros Fotográficos Vintage**: Revive colores descoloridos y balancea el contraste con ecualización CLAHE en espacio LAB.
+- **Reducción de Grano y Ruido Analógico**: Limpia el granulado de película o escaneos antiguos sin emborronar.
+- **Comparador Deslizante Interactivo Antes / Después**: Compara en tiempo real la imagen original frente a la mejorada con IA.
+
+### 🤖 Reconocimiento Automático de Contenido Generado por IA
+- Identificación automática de imágenes generadas por **ComfyUI**, **Stable Diffusion / SDXL**, **Flux**, **NovelAI**, **InvokeAI**, **Midjourney** o **DALL-E**.
+- Carpeta inteligente dedicada con portadas dinámicas y filtros por generador.
+
+### 🔍 Aislamiento de Miniaturas y Archivos Basura (<1 KB)
+- Separación automática de más de 46.000 miniaturas residuales, iconos de sistema y archivos temporales para mantener la cronología principal limpia.
+- Botón de alternancia rápida en la barra superior para mostrar u ocultar miniaturas a voluntad.
 
 ### 📅 Cronología Infinita por Fechas
 - Vista fluida organizada cronológicamente por años, meses y días.
-- **Scrubber lateral de años**: salto instantáneo a cualquier año de tu vida o filtrado con un solo clic.
+- **Scrubber lateral de años**: Salto instantáneo a cualquier año de tu vida o filtrado con un solo clic.
 - Desplazamiento infinito optimizado para colecciones de más de **100.000 fotos**.
 
 ### 👤 Reconocimiento Facial y Agrupación de Personas con IA
 - **Detección de rostros**: Algoritmo **YuNet** de alto rendimiento.
 - **Embeddings faciales**: Extracción de características vectoriales de 128 dimensiones con **SFace**.
-- **Clustering automático**: Algoritmo jerárquico aglomerativo que agrupa las fotos según la misma persona.
+- **Clustering automático**: Agrupamiento jerárquico aglomerativo que reúne las fotos de una misma persona.
 - Galería con avatares de rostros, contadores de fotos por persona y opción para renombrar.
 
-### 🔞 Filtro Inteligente de Contenido Sensible (NSFW)
+### 🛡️ Filtro Inteligente de Contenido Sensible (NSFW)
 - Modelo de Inteligencia Artificial basado en **Vision Transformers (ViT)** (`Falconsai/nsfw_image_detection`).
 - Modo seguro conmutador: desenfoque en tiempo real, ocultación completa o visualización normal.
-- Escaneo en segundo plano multihilo con barra de progreso en vivo y control de parada/reanudación.
 
-### ⚡ Limpieza Inteligente de Duplicados con Borrado Masivo
+### 🧹 Limpieza Inteligente de Duplicados con Borrado Masivo
 - Identificación de **duplicados exactos** por hash criptográfico SHA-256.
 - Detección de **fotos similares o ráfagas** mediante hash perceptual dHash.
-- **Acciones en lote**:
-  - Checkbox para **seleccionar todas las copias redundantes** de golpe.
-  - Botón de **Limpieza Total (Conserva automáticamente la mejor resolución/calidad)**.
-  - Eliminación transaccional SQLite de miles de fotos en menos de 250 milisegundos.
+- Selección masiva con un solo clic y botón de **Limpieza Total** (conserva automáticamente la versión con mayor resolución).
 
 ### 🗺️ Mapa de Lugares y Geolocalización
 - Extracción automática de coordenadas GPS desde los metadatos EXIF.
 - Mapa interactivo con agrupación por ciudades y países.
-
-### 🎨 Exploración por Colores, Cámaras y Colecciones
-- Análisis de paletas de colores dominantes de cada imagen.
-- Clasificación por modelo de cámara, smartphone y parámetros de disparo (ISO, apertura, velocidad).
-- Álbumes personalizados y colección de fotos favoritas.
 
 ---
 
@@ -61,19 +70,20 @@ Organizador Supremo de Fotos es una aplicación de escritorio moderna desarrolla
 - **Frontend**: HTML5, Vanilla CSS3 (diseño oscuro premium, glassmorphism), JavaScript moderno.
 - **Backend de Escritorio**: [Electron](https://www.electronjs.org/), [Express.js](https://expressjs.com/), base de datos SQLite integrada con WAL mode (`node:sqlite`).
 - **Pipeline de IA & Visión**:
-  - Python 3
-  - OpenCV (`cv2.FaceDetectorYN`, `cv2.FaceRecognizerSF`)
-  - Scikit-Learn (`AgglomerativeClustering`)
-  - PyTorch & Hugging Face Transformers (`ViTForImageClassification`)
-  - Pillow (PIL)
+  - **OpenCV Zoo**: Modelos ONNX de detección (`YuNet`) y reconocimiento facial (`SFace`).
+  - **Real-ESRGAN v3 ONNX**: Super-resolución e inferencia por teselas con `onnxruntime`.
+  - **Hugging Face Transformers**: Clasificación de seguridad visual con ViT.
 
 ---
 
-## 🚀 Instalación y Puesta en Marcha
+## 🚀 Instalación desde Código Fuente (Para Desarrolladores)
+
+> [!NOTE]
+> Si solo quieres usar el programa, no necesitas seguir estos pasos: descarga el [**.exe de instalación**](https://github.com/vevikils/organizador-fotos-supreme/releases/latest).
 
 ### Prerrequisitos
-- [Node.js](https://nodejs.org/) (versión 20 o superior recomendada).
-- [Python](https://www.python.org/) 3.10 o superior.
+- **Node.js**: v20.0.0 o superior (recomendado v22 LTS).
+- **Python**: v3.10 a v3.13 (para aceleración de visión por computador).
 
 ### 1. Clonar el repositorio
 ```bash
@@ -86,27 +96,38 @@ cd organizador-fotos-supreme
 npm install
 ```
 
+> 💡 **Solución a errores frecuentes con `npm install`**:
+> - **Conflicto de versiones de npm**: Ejecuta `npm install --legacy-peer-deps`
+> - **Fallo al descargar el binario de Electron por proxy o timeout**: Ejecuta `npm install --ignore-scripts`
+> - **Versión de Node**: Verifica que tu versión sea 20+ con `node -v`.
+
 ### 3. Instalar dependencias de Python (para funciones de IA)
 ```bash
-pip install opencv-python scikit-learn torch transformers pillow
+pip install opencv-python onnxruntime scikit-learn torch transformers pillow
 ```
 
-### 4. Iniciar la aplicación
+### 4. Iniciar la aplicación en modo desarrollo
 ```bash
 npm start
 ```
-*En Windows también puedes ejecutar directamente `Iniciar_Organizador_Fotos.bat` o el lanzador compilado `Organizador_Fotos.exe`.*
+
+### 5. Compilar tu propio instalador .exe
+```bash
+npm run build
+```
+Los ejecutables se generarán en la carpeta `dist/`.
 
 ---
 
 ## 🔒 Privacidad por Diseño
 
 Esta aplicación está pensada para la máxima privacidad:
-- Las bases de datos (`data/`), miniaturas de caché (`cache/`) y configuraciones personales se guardan localmente en tu equipo y están explícitamente excluidas del control de versiones.
-- **Cero telemetría**: Ningún dato ni fotografía sale de tu ordenador.
+- **100% Local**: Ninguna foto, miniatura, metadato ni base de datos sale jamás de tu equipo.
+- **Sin cuentas obligatorias ni telemetría invasiva**.
+- **Tus archivos se quedan donde están**: El organizador no duplica tus fotos originales a menos que expresamente lo solicites al editarlas o mejorarlas con IA.
 
 ---
 
 ## 📄 Licencia
 
-Este proyecto está bajo la licencia [MIT](LICENSE).
+Este proyecto está distribuido bajo la licencia [MIT](LICENSE).

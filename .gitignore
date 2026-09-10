@@ -16,7 +16,6 @@ cache/*
 # DEPENDENCIAS Y ENTORNO
 # ========================================
 node_modules/
-package-lock.json
 
 # Caché de Python
 __pycache__/

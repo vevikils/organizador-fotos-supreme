@@ -77,5 +77,8 @@
     "portable": {
       "artifactName": "Organizador-Supremo-de-Fotos-${version}-Portable.exe"
     }
+  },
+  "engines": {
+    "node": ">=20.0.0"
   }
 }
