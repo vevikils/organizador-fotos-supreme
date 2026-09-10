@@ -4,9 +4,19 @@
   "description": "Organizador y clasificador de fotos de escritorio estilo Google Fotos",
   "main": "main.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "build": "electron-builder --win",
+    "build:portable": "electron-builder --win portable",
+    "build:all": "electron-builder --win nsis portable"
   },
-  "keywords": ["photos", "google-photos", "desktop", "organizer", "exif", "duplicates"],
+  "keywords": [
+    "photos",
+    "google-photos",
+    "desktop",
+    "organizer",
+    "exif",
+    "duplicates"
+  ],
   "author": "Antigravity",
   "license": "MIT",
   "dependencies": {
@@ -17,6 +27,55 @@
     "jimp": "^1.6.1"
   },
   "devDependencies": {
-    "electron": "^34.2.0"
+    "electron": "^34.2.0",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "com.vevikils.organizadorsupremo",
+    "productName": "Organizador Supremo de Fotos",
+    "copyright": "Copyright (c) 2026 vevikils",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "**/*",
+      "!data/**",
+      "!cache/**",
+      "!dist/**",
+      "!scratch/**",
+      "!*.log"
+    ],
+    "asar": true,
+    "asarUnpack": [
+      "server/**"
+    ],
+    "win": {
+      "icon": "public/icons/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Organizador Supremo de Fotos",
+      "artifactName": "Organizador-Supremo-de-Fotos-Setup-${version}.exe"
+    },
+    "portable": {
+      "artifactName": "Organizador-Supremo-de-Fotos-${version}-Portable.exe"
+    }
   }
 }

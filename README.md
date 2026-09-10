@@ -2,6 +2,19 @@
 
 > **Tu propia alternativa privada, local y ultra-rápida a Google Fotos para escritorio con Inteligencia Artificial.**
 
+## 📥 Descarga para Windows (.exe)
+
+Puedes descargar la aplicación directamente lista para usar sin necesidad de instalar Node.js:
+
+| Tipo | Archivo | Descripción |
+| :--- | :--- | :--- |
+| 🚀 **Instalador (Recomendado)** | [**Organizador-Supremo-de-Fotos-Setup-1.0.0.exe**](https://github.com/vevikils/organizador-fotos-supreme/releases/download/v1.0.0/Organizador-Supremo-de-Fotos-Setup-1.0.0.exe) | Asistente de instalación de Windows con accesos directos en Escritorio y Menú Inicio. |
+| 🎒 **Versión Portable** | [**Organizador-Supremo-de-Fotos-1.0.0-Portable.exe**](https://github.com/vevikils/organizador-fotos-supreme/releases/download/v1.0.0/Organizador-Supremo-de-Fotos-1.0.0-Portable.exe) | Ejecutable único sin instalación; ejecútalo directamente desde cualquier carpeta o pendrive. |
+
+👉 **[Ver todas las versiones en GitHub Releases](https://github.com/vevikils/organizador-fotos-supreme/releases)**
+
+---
+
 Organizador Supremo de Fotos es una aplicación de escritorio moderna desarrollada con **Electron**, **Node.js (Express + SQLite)** y modelos de **Visión por Computador con IA (PyTorch, OpenCV Zoo)** que indexa, organiza y analiza tu biblioteca fotográfica de forma 100% local, sin subir ninguna foto a servidores externos ni depender de suscripciones en la nube.
 
 ---

@@ -2,13 +2,13 @@ const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
-const { stmts } = require('./db');
+const { stmts, STORAGE_ROOT } = require('./db');
 const { scanner } = require('./scanner');
 
 class EnhancerManager {
   constructor() {
     this.jobs = new Map();
-    this.cacheDir = path.join(__dirname, '..', 'cache', 'enhanced');
+    this.cacheDir = path.join(STORAGE_ROOT, 'cache', 'enhanced');
     if (!fs.existsSync(this.cacheDir)) {
       fs.mkdirSync(this.cacheDir, { recursive: true });
     }

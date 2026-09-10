@@ -5,7 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const { exec } = require('child_process');
 
-const { db, stmts, queryPhotos, findDuplicates, cleanAllDuplicates, batchDeletePhotos, getDuplicateStats, getCategoryCounts } = require('./db');
+const { db, stmts, STORAGE_ROOT, queryPhotos, findDuplicates, cleanAllDuplicates, batchDeletePhotos, getDuplicateStats, getCategoryCounts } = require('./db');
 const { scanner } = require('./scanner');
 const nsfwManager = require('./nsfw_manager');
 const facesManager = require('./faces_manager');
@@ -512,7 +512,7 @@ router.get('/enhance/status/:jobId', (req, res) => {
 
 router.get('/enhance/preview/:filename', (req, res) => {
   const filename = path.basename(req.params.filename);
-  const filePath = path.join(__dirname, '..', 'cache', 'enhanced', filename);
+  const filePath = path.join(STORAGE_ROOT, 'cache', 'enhanced', filename);
   if (!fs.existsSync(filePath)) return res.status(404).send('Preview no encontrado');
   res.sendFile(filePath);
 });

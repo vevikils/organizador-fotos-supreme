@@ -5,13 +5,14 @@ const path = require('path');
 const http = require('http');
 
 const apiRouter = require('./api');
+const { STORAGE_ROOT } = require('./db');
 
 const app = express();
 const PORT = process.env.PORT || 3850;
 
 app.use(cors());
 app.use(express.json());
-app.use('/cache', express.static(path.join(__dirname, '..', 'cache')));
+app.use('/cache', express.static(path.join(STORAGE_ROOT, 'cache')));
 app.use('/api', apiRouter);
 app.use(express.static(path.join(__dirname, '..', 'public')));
 

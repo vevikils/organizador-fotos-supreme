@@ -32,13 +32,20 @@ def get_base_dir():
     return Path(__file__).resolve().parent.parent
 
 def get_db_path():
+    env_storage = os.environ.get('ORGANIZADOR_STORAGE_DIR')
+    if env_storage:
+        return Path(env_storage) / "data" / "photos.db"
     return get_base_dir() / "data" / "photos.db"
 
 def get_models_dir():
     return Path(__file__).resolve().parent / "models"
 
 def get_faces_cache_dir():
-    faces_dir = get_base_dir() / "cache" / "faces"
+    env_storage = os.environ.get('ORGANIZADOR_STORAGE_DIR')
+    if env_storage:
+        faces_dir = Path(env_storage) / "cache" / "faces"
+    else:
+        faces_dir = get_base_dir() / "cache" / "faces"
     faces_dir.mkdir(parents=True, exist_ok=True)
     return faces_dir
 

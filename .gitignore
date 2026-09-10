@@ -43,3 +43,15 @@ Thumbs.db
 ehthumbs.db
 Desktop.ini
 .DS_Store
+
+
+# ========================================
+# COMPILACIÓN Y EJECUTABLES
+# ========================================
+dist/
+dist/*
+build/
+build/*
+*.exe
+*.zip
+*.blockmap

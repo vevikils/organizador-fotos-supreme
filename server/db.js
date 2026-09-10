@@ -633,6 +633,9 @@ function getCategoryCounts() {
 }
 
 module.exports = {
+  STORAGE_ROOT,
+  DATA_DIR,
+  CACHE_DIR,
   db,
   stmts,
   queryPhotos,
