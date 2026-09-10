@@ -5,7 +5,7 @@ const path = require('path');
 const http = require('http');
 
 const apiRouter = require('./api');
-const { STORAGE_ROOT } = require('./db');
+const { STORAGE_ROOT, dbReady } = require('./db');
 
 const app = express();
 const PORT = process.env.PORT || 3850;
@@ -22,7 +22,10 @@ app.get('*', (req, res) => {
 
 const server = http.createServer(app);
 
-function startServer() {
+async function startServer() {
+  if (dbReady) {
+    await dbReady;
+  }
   return new Promise((resolve, reject) => {
     server.listen(PORT, '127.0.0.1', () => {
       console.log(`[Servidor] Organizador de Fotos iniciado en http://127.0.0.1:${PORT}`);
