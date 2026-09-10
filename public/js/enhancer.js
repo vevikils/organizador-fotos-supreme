@@ -7,35 +7,45 @@ class PhotoEnhancer {
     this.currentJobId = null;
     this.pollTimer = null;
     this.isDragging = false;
-    this.sliderPosition = 50; // porcentaje 0 - 100
+    this.sliderPosition = 50;
     this.enhancedResult = null;
+    this.initialized = false;
 
-    this.init();
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => this.init());
+    } else {
+      this.init();
+    }
   }
 
   init() {
-    // Cerrar modal
+    if (this.initialized) return;
+    const btnStart = document.getElementById('btn-start-enhance');
+    const btnFooterStart = document.getElementById('btn-footer-start-enhance');
+    if (!btnStart && !btnFooterStart) return;
+    this.initialized = true;
+
+    // Botones para cerrar modal
     const closeBtn = document.getElementById('btn-enhance-close');
     const cancelBtn = document.getElementById('btn-enh-cancel');
     if (closeBtn) closeBtn.addEventListener('click', () => this.closeModal());
     if (cancelBtn) cancelBtn.addEventListener('click', () => this.closeModal());
 
-    // Iniciar mejora
-    const startBtn = document.getElementById('btn-start-enhance');
-    if (startBtn) startBtn.addEventListener('click', () => this.startEnhance());
+    // Botones para iniciar mejora (sidebar y footer)
+    if (btnStart) btnStart.addEventListener('click', () => this.startEnhance());
+    if (btnFooterStart) btnFooterStart.addEventListener('click', () => this.startEnhance());
 
-    // Cambiar escala en opciones
+    // Opciones de escala
     const scaleRadios = document.querySelectorAll('input[name="enhance-scale"]');
     scaleRadios.forEach(radio => {
       radio.addEventListener('change', () => {
-        // Actualizar clase activa en pills
         document.querySelectorAll('.enhance-scale-pill').forEach(p => p.classList.remove('active'));
         radio.closest('.enhance-scale-pill')?.classList.add('active');
         this.updateTargetResolution();
       });
     });
 
-    // Botones de guardado
+    // Botones de acción post-mejora
     const saveCopyBtn = document.getElementById('btn-enh-save-copy');
     if (saveCopyBtn) saveCopyBtn.addEventListener('click', () => this.saveEnhanced('copy'));
 
@@ -48,18 +58,18 @@ class PhotoEnhancer {
     const reconfigBtn = document.getElementById('btn-enh-reconfigure');
     if (reconfigBtn) reconfigBtn.addEventListener('click', () => this.showConfigState());
 
-    // Inicializar listeners del comparador deslizante
+    // Comparador deslizante
     this.initSliderListeners();
   }
 
   openModal(photo) {
     if (!photo) return;
+    this.init();
     this.currentPhoto = photo;
     this.currentJobId = null;
     this.enhancedResult = null;
     if (this.pollTimer) clearInterval(this.pollTimer);
 
-    // Rellenar información de la foto
     const origW = photo.width || 0;
     const origH = photo.height || 0;
     const mp = origW && origH ? ((origW * origH) / 1000000).toFixed(1) : '--';
@@ -69,19 +79,56 @@ class PhotoEnhancer {
     if (origResEl) origResEl.textContent = origW && origH ? `${origW} × ${origH} px` : 'Desconocida';
     if (origMpEl) origMpEl.textContent = `${mp} MP`;
 
+    // Selección inteligente de escala recomendada
+    let defaultScale = 4;
+    if (origW > 2500 || origH > 2500) {
+      defaultScale = 1; // Si ya es 4K+, sugerir restaurar sin agrandar o 2x
+    } else if (origW > 1280 || origH > 1280) {
+      defaultScale = 2; // Si es mediana/grande, sugerir 2x
+    } else {
+      defaultScale = 4; // Si es baja resolución/antigua, 4x
+    }
+
+    const targetRadio = document.querySelector(`input[name="enhance-scale"][value="${defaultScale}"]`);
+    if (targetRadio) {
+      targetRadio.checked = true;
+      document.querySelectorAll('.enhance-scale-pill').forEach(p => p.classList.remove('active'));
+      targetRadio.closest('.enhance-scale-pill')?.classList.add('active');
+    }
+
+    // Consejo dinámico según tamaño
+    const hintEl = document.getElementById('enh-scale-hint');
+    if (hintEl) {
+      if (origW > 2500 || origH > 2500) {
+        hintEl.textContent = '💡 Foto en alta resolución (>4K). Se sugiere 1x para restaurar colores/grano o 2x para más detalle.';
+        hintEl.style.display = 'block';
+      } else if (origW > 1280 || origH > 1280) {
+        hintEl.textContent = '💡 Se sugiere 2x HD para un balance óptimo de nitidez y velocidad.';
+        hintEl.style.display = 'block';
+      } else {
+        hintEl.textContent = '💡 Excelente foto para Super-Resolución 4x Ultra HD.';
+        hintEl.style.display = 'block';
+      }
+    }
+
     this.updateTargetResolution();
 
-    // Vista previa inicial
+    // Vista previa con fallback
     const initialImg = document.getElementById('enh-initial-preview');
-    const photoUrl = `/api/photos/${photo.id}/view`;
-    if (initialImg) initialImg.src = photoUrl;
+    if (initialImg) {
+      initialImg.src = `/api/photos/${photo.id}/raw`;
+      initialImg.onerror = () => {
+        initialImg.src = `/api/photos/${photo.id}/thumbnail`;
+      };
+    }
 
-    // Mostrar estado de configuración
     this.showConfigState();
 
-    // Abrir modal
     const modal = document.getElementById('modal-ai-enhance');
-    if (modal) modal.style.display = 'flex';
+    if (modal) {
+      modal.style.display = 'flex';
+      modal.style.zIndex = '2500';
+    }
   }
 
   closeModal() {
@@ -99,8 +146,14 @@ class PhotoEnhancer {
     const targetEl = document.getElementById('enh-target-res');
     if (targetEl) {
       if (origW && origH) {
-        const targetW = origW * scale;
-        const targetH = origH * scale;
+        let targetW = origW * scale;
+        let targetH = origH * scale;
+        // Si excede 6144, mostrar que se optimizará
+        if (Math.max(targetW, targetH) > 6144) {
+          const ratio = 6144 / Math.max(targetW, targetH);
+          targetW = Math.round(targetW * ratio);
+          targetH = Math.round(targetH * ratio);
+        }
         const targetMp = ((targetW * targetH) / 1000000).toFixed(1);
         targetEl.textContent = `${targetW} × ${targetH} px (${targetMp} MP)`;
       } else {
@@ -115,6 +168,8 @@ class PhotoEnhancer {
     document.getElementById('enhance-view-compare')?.style.setProperty('display', 'none');
 
     // Botones de footer
+    document.getElementById('btn-footer-start-enhance')?.style.setProperty('display', 'inline-flex');
+    document.getElementById('btn-start-enhance')?.style.setProperty('display', 'inline-flex');
     document.getElementById('btn-enh-reconfigure')?.style.setProperty('display', 'none');
     document.getElementById('btn-enh-download')?.style.setProperty('display', 'none');
     document.getElementById('btn-enh-replace')?.style.setProperty('display', 'none');
@@ -134,10 +189,14 @@ class PhotoEnhancer {
     const unsharp = document.getElementById('enh-opt-unsharp')?.checked ?? true;
     const face_enhance = document.getElementById('enh-opt-face')?.checked ?? true;
 
-    // Pasar a estado Loading
+    // Cambiar a estado cargando
     document.getElementById('enhance-view-initial')?.style.setProperty('display', 'none');
     document.getElementById('enhance-view-loading')?.style.setProperty('display', 'flex');
     document.getElementById('enhance-view-compare')?.style.setProperty('display', 'none');
+
+    document.getElementById('btn-footer-start-enhance')?.style.setProperty('display', 'none');
+    document.getElementById('btn-start-enhance')?.style.setProperty('display', 'none');
+
     this.updateProgressBar(5, 'Iniciando conexión con el motor de IA...');
 
     try {
@@ -181,7 +240,7 @@ class PhotoEnhancer {
           this.showConfigState();
         }
       } catch (e) {
-        // reintentar en el siguiente ciclo
+        // Reintentar en siguiente ciclo
       }
     }, 350);
   }
@@ -202,7 +261,7 @@ class PhotoEnhancer {
     document.getElementById('enhance-view-loading')?.style.setProperty('display', 'none');
     document.getElementById('enhance-view-compare')?.style.setProperty('display', 'flex');
 
-    const origUrl = `/api/photos/${this.currentPhoto.id}/view`;
+    const origUrl = `/api/photos/${this.currentPhoto.id}/raw`;
     const enhancedUrl = result.previewUrl;
 
     const imgBefore = document.getElementById('enh-img-before');
@@ -228,7 +287,6 @@ class PhotoEnhancer {
     if (metricScale) metricScale.textContent = scaleText;
     if (metricTime) metricTime.textContent = timeText;
 
-    // Reiniciar posición del divisor al centro (50%)
     this.setSliderPosition(50);
 
     // Botones de footer
@@ -236,6 +294,7 @@ class PhotoEnhancer {
     document.getElementById('btn-enh-download')?.style.setProperty('display', 'inline-flex');
     document.getElementById('btn-enh-replace')?.style.setProperty('display', 'inline-flex');
     document.getElementById('btn-enh-save-copy')?.style.setProperty('display', 'inline-flex');
+    document.getElementById('btn-footer-start-enhance')?.style.setProperty('display', 'none');
     document.getElementById('btn-enh-cancel')?.style.setProperty('display', 'none');
   }
 
@@ -286,7 +345,6 @@ class PhotoEnhancer {
     if (divider) divider.style.left = `${percent}%`;
     if (beforeWrapper) {
       beforeWrapper.style.width = `${percent}%`;
-      // Asegurar que la imagen interior mantenga el tamaño del contenedor completo
       const beforeImg = document.getElementById('enh-img-before');
       if (beforeImg && box) {
         beforeImg.style.width = `${box.clientWidth}px`;
@@ -321,7 +379,6 @@ class PhotoEnhancer {
 
       this.closeModal();
 
-      // Refrescar cronología o recargar foto en Lightbox si sigue abierto
       if (window.timeline && window.timeline.refresh) {
         window.timeline.refresh();
       }

@@ -85,6 +85,18 @@ router.get('/photos/:id', (req, res) => {
   }
 });
 
+router.get('/photos/:id/view', (req, res) => {
+  try {
+    const photo = stmts.getPhotoById.get(req.params.id);
+    if (!photo || !fs.existsSync(photo.file_path)) {
+      return res.status(404).json({ error: 'Archivo no encontrado' });
+    }
+    res.sendFile(path.resolve(photo.file_path));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get('/photos/:id/raw', (req, res) => {
   try {
     const photo = stmts.getPhotoById.get(req.params.id);

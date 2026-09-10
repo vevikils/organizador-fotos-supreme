@@ -228,6 +228,16 @@ def main():
     orig_h, orig_w = img.shape[:2]
     send_message("progress", percent=10, step=f"Imagen cargada ({orig_w}x{orig_h}). Aplicando restauraciones...")
 
+    # Protección contra fotos gigantes (>6K de salida) para optimizar memoria y velocidad
+    MAX_OUTPUT_DIM = 6144
+    target_max = max(orig_w, orig_h) * args.scale
+    if target_max > MAX_OUTPUT_DIM:
+        down_factor = MAX_OUTPUT_DIM / target_max
+        new_w = max(64, int(orig_w * down_factor))
+        new_h = max(64, int(orig_h * down_factor))
+        img = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_AREA)
+        send_message("progress", percent=11, step=f"Ajustando imagen para optimizar IA ({new_w}x{new_h})...")
+
     if args.denoise:
         send_message("progress", percent=12, step="Eliminando ruido y granulado antiguo...")
         img = apply_denoise(img)
