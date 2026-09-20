@@ -39,6 +39,7 @@ import java.io.InputStream
 class MainActivity : ComponentActivity() {
   private lateinit var db: LocalDatabase
   private lateinit var scanner: LocalMediaScanner
+  private lateinit var aiManager: LocalAiManager
   private lateinit var router: LocalApiRouter
   private lateinit var prefs: SharedPreferences
 
@@ -46,7 +47,8 @@ class MainActivity : ComponentActivity() {
     super.onCreate(savedInstanceState)
     db = LocalDatabase(this)
     scanner = LocalMediaScanner(this, db)
-    router = LocalApiRouter(this, db, scanner)
+    aiManager = LocalAiManager(this, db)
+    router = LocalApiRouter(this, db, scanner, aiManager)
     prefs = getSharedPreferences("fotos_supreme_prefs", Context.MODE_PRIVATE)
 
     enableEdgeToEdge()

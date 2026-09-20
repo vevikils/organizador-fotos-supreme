@@ -1,9 +1,10 @@
 // public/js/people.js
-// Gestor de Clasificación por Personas y Reconocimiento Facial
+// Gestor de Clasificación por Personas y Reconocimiento Facial (Android Standalone)
 
 const PeopleView = {
   eventSource: null,
   isScanning: false,
+  pollTimer: null,
   persons: [],
 
   init() {
@@ -14,55 +15,48 @@ const PeopleView = {
   connectEventStream() {
     if (this.eventSource) return;
 
-    this.eventSource = new EventSource('/api/faces/stream');
+    try {
+      this.eventSource = new EventSource('/api/faces/stream');
 
-    this.eventSource.addEventListener('start', (e) => {
-      this.isScanning = true;
-      this.showScanBanner(true);
-      try {
-        const data = JSON.parse(e.data);
-        this.updateScanProgress(data);
-      } catch (err) {}
-    });
-
-    this.eventSource.addEventListener('progress', (e) => {
-      try {
-        const data = JSON.parse(e.data);
+      this.eventSource.addEventListener('start', (e) => {
         this.isScanning = true;
         this.showScanBanner(true);
-        this.updateScanProgress(data);
-      } catch (err) {}
-    });
+        try {
+          const data = JSON.parse(e.data);
+          this.updateScanProgress(data);
+        } catch (err) {}
+      });
 
-    this.eventSource.addEventListener('clustering', (e) => {
-      const statusText = document.getElementById('faces-scan-status-text');
-      if (statusText) {
-        statusText.textContent = 'Agrupando caras similares en personas con IA...';
-      }
-    });
-
-    this.eventSource.addEventListener('complete', (e) => {
-      this.isScanning = false;
-      this.showScanBanner(false);
-      this.load();
-    });
-
-    this.eventSource.addEventListener('stopped', (e) => {
-      this.isScanning = false;
-      this.showScanBanner(false);
-      this.load();
-    });
-
-    this.eventSource.addEventListener('status', (e) => {
-      try {
-        const data = JSON.parse(e.data);
-        if (data.isScanning) {
+      this.eventSource.addEventListener('progress', (e) => {
+        try {
+          const data = JSON.parse(e.data);
           this.isScanning = true;
           this.showScanBanner(true);
-          this.updateScanProgress(data.current);
-        }
-      } catch (err) {}
-    });
+          this.updateScanProgress(data);
+        } catch (err) {}
+      });
+
+      this.eventSource.addEventListener('complete', (e) => {
+        this.finishScan();
+      });
+
+      this.eventSource.addEventListener('stopped', (e) => {
+        this.finishScan();
+      });
+
+      this.eventSource.addEventListener('status', (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          if (data.isScanning) {
+            this.isScanning = true;
+            this.showScanBanner(true);
+            this.updateScanProgress(data.current);
+          }
+        } catch (err) {}
+      });
+    } catch (e) {
+      console.log('SSE fallback to polling');
+    }
   },
 
   setupViewEvents() {
@@ -82,59 +76,91 @@ const PeopleView = {
     if (banner) {
       banner.style.display = show ? 'block' : 'none';
     }
+    const btnStart = document.getElementById('btn-start-faces-scan');
+    if (btnStart) {
+      btnStart.disabled = show;
+      btnStart.style.opacity = show ? '0.6' : '1';
+    }
   },
 
-  updateScanProgress(raw) {
-    const data = (raw && raw.current) ? raw.current : (raw || {});
-    const fill = document.getElementById('faces-scan-progress-fill');
+  updateScanProgress(data) {
+    if (!data) return;
+    const processed = data.processed || 0;
+    const total = data.total || 0;
+    const faces = data.faces || 0;
+    const people = data.people || 0;
+
     const countText = document.getElementById('faces-scan-count-text');
-    const fileText = document.getElementById('faces-scan-file-text');
-    const pctText = document.getElementById('faces-scan-percentage-text');
+    const percentText = document.getElementById('faces-scan-percentage-text');
+    const progressFill = document.getElementById('faces-scan-progress-fill');
     const statusText = document.getElementById('faces-scan-status-text');
 
-    const total = data.total || 0;
-    const processed = data.processed || 0;
-    const pct = data.percentage ?? (total > 0 ? Math.round((processed / total) * 100) : 0);
-    const facesFound = data.facesFound || data.faces_found || 0;
-    const fileName = data.fileName || data.currentFile || data.current_file || '';
+    const pct = total > 0 ? Math.min(100, Math.round((processed / total) * 100)) : 0;
 
-    if (fill) fill.style.width = `${pct}%`;
-    if (pctText) pctText.textContent = `${pct}%`;
-    if (countText) countText.textContent = `${processed} / ${total} fotos`;
-    if (fileText && fileName) fileText.textContent = fileName;
-    if (statusText) {
-      statusText.textContent = `Detectando caras (${facesFound} encontradas)...`;
-    }
+    if (countText) countText.textContent = `${processed} / ${total} fotos (${faces} caras)`;
+    if (percentText) percentText.textContent = `${pct}%`;
+    if (progressFill) progressFill.style.width = `${pct}%`;
+    if (statusText) statusText.textContent = `Detectando rostros en tu móvil... (${faces} caras encontradas)`;
+
+    const statFaces = document.getElementById('stat-total-faces');
+    const statPersons = document.getElementById('stat-total-persons');
+    if (statFaces && faces > 0) statFaces.textContent = faces;
+    if (statPersons && people > 0) statPersons.textContent = people;
   },
 
   async startScan() {
     try {
-      const res = await fetch('/api/faces/scan', {
+      this.isScanning = true;
+      this.showScanBanner(true);
+      this.updateScanProgress({ processed: 0, total: 10, faces: 0, people: 0 });
+
+      await fetch('/api/faces/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ batchSize: 20 })
+        body: JSON.stringify({})
       });
-      const data = await res.json();
-      if (data.success) {
-        this.showScanBanner(true);
-      }
+
+      // Active status polling loop
+      if (this.pollTimer) clearInterval(this.pollTimer);
+      this.pollTimer = setInterval(async () => {
+        try {
+          const res = await fetch('/api/faces/status');
+          const data = await res.json();
+          if (data && data.current) {
+            this.updateScanProgress(data.current);
+            if (!data.isScanning && data.current.processed >= data.current.total && data.current.total > 0) {
+              this.finishScan();
+            }
+          }
+        } catch (err) {}
+      }, 700);
+
     } catch (e) {
-      console.error('Error iniciando escaneo facial:', e);
+      console.error(e);
+      this.finishScan();
     }
   },
 
   async stopScan() {
     try {
       await fetch('/api/faces/stop', { method: 'POST' });
-      this.showScanBanner(false);
     } catch (e) {}
+    this.finishScan();
+  },
+
+  finishScan() {
+    this.isScanning = false;
+    if (this.pollTimer) {
+      clearInterval(this.pollTimer);
+      this.pollTimer = null;
+    }
+    this.showScanBanner(false);
+    this.load();
   },
 
   async load() {
-    const container = document.getElementById('people-grid-container');
+    const container = document.getElementById('faces-grid-container');
     if (!container) return;
-
-    container.innerHTML = '<div class="loading-spinner"><div class="spinner"></div><p>Cargando personas reconocidas...</p></div>';
 
     try {
       const [personsRes, statsRes] = await Promise.all([
@@ -158,10 +184,10 @@ const PeopleView = {
       if (this.persons.length === 0) {
         container.innerHTML = `
           <div class="empty-state">
-            <span class="material-symbols-outlined empty-icon" style="color: var(--accent-primary);">face</span>
+            <span class="material-symbols-outlined empty-icon" style="color: #6366f1;">face</span>
             <h3>No hay personas agrupadas todavía</h3>
-            <p>Utiliza la Inteligencia Artificial para escanear tus fotos, detectar rostros y agrupar automáticamente a las mismas personas.</p>
-            <button class="btn btn-primary" onclick="PeopleView.startScan()">
+            <p>Utiliza la Inteligencia Artificial para escanear las fotos de tu teléfono, detectar rostros y agrupar automáticamente a tus personas.</p>
+            <button class="btn btn-primary btn-pill" onclick="PeopleView.startScan()">
               <span class="material-symbols-outlined">psychology</span>
               Escanear Personas con IA
             </button>
@@ -172,16 +198,16 @@ const PeopleView = {
 
       let html = '<div class="people-grid">';
       this.persons.forEach(person => {
-        const avatar = person.cover_crop_path || '/icons/default_avatar.png';
+        const thumbUrl = `/api/photos/${person.sample_photo_id}/thumbnail`;
         html += `
           <div class="person-card" data-id="${person.id}">
             <div class="person-avatar-wrap">
               <img 
-                src="${avatar}" 
+                src="${thumbUrl}" 
                 alt="${person.name}" 
                 class="person-avatar" 
                 loading="lazy" 
-                onerror="this.src='/api/photos/${person.sample_photo_id}/thumbnail'"
+                onerror="this.style.opacity=0.4"
               />
               <span class="person-badge-count">
                 <span class="material-symbols-outlined">photo</span>
@@ -189,10 +215,10 @@ const PeopleView = {
               </span>
             </div>
             <div class="person-info">
-              <h4 class="person-name" title="Clic para renombrar">${person.name}</h4>
+              <h4 class="person-name">${person.name}</h4>
               <p class="person-count">${person.photo_count} ${person.photo_count === 1 ? 'foto' : 'fotos'}</p>
             </div>
-            <button class="btn-icon btn-rename-person" title="Renombrar persona" onclick="event.stopPropagation(); PeopleView.promptRename(${person.id}, '${person.name.replace(/'/g, "\\'")}')">
+            <button class="btn-icon btn-rename-person" title="Renombrar persona" onclick="event.stopPropagation(); PeopleView.promptRename(${person.id}, '${person.name.replace(/'/g, "\'")}')">
               <span class="material-symbols-outlined">edit</span>
             </button>
           </div>
@@ -202,7 +228,6 @@ const PeopleView = {
 
       container.innerHTML = html;
 
-      // Click para abrir la galería de fotos de esa persona
       container.querySelectorAll('.person-card').forEach(card => {
         card.addEventListener('click', () => {
           const id = card.dataset.id;
@@ -243,3 +268,4 @@ const PeopleView = {
 };
 
 window.PeopleView = PeopleView;
+document.addEventListener('DOMContentLoaded', () => PeopleView.init());

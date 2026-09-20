@@ -7,6 +7,7 @@ import android.media.ThumbnailUtils
 import android.net.Uri
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
+import kotlinx.coroutines.*
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.ByteArrayInputStream
@@ -15,7 +16,12 @@ import java.io.File
 import java.io.FileInputStream
 import java.io.InputStream
 
-class LocalApiRouter(private val context: Context, private val db: LocalDatabase, val scanner: LocalMediaScanner) {
+class LocalApiRouter(
+  private val context: Context,
+  private val db: LocalDatabase,
+  val scanner: LocalMediaScanner,
+  val aiManager: LocalAiManager
+) {
 
   fun handle(url: String, request: WebResourceRequest): WebResourceResponse? {
     try {
@@ -42,21 +48,18 @@ class LocalApiRouter(private val context: Context, private val db: LocalDatabase
         val category = uri.getQueryParameter("category")
         val favorites = uri.getQueryParameter("favorites") == "true"
         val query = uri.getQueryParameter("q") ?: uri.getQueryParameter("query")
+        val personId = uri.getQueryParameter("personId")?.toLongOrNull()
+        val nsfw = uri.getQueryParameter("nsfw") == "nsfw_only"
 
-        val photos = db.queryPhotos(limit, offset, category, favorites, query)
+        val photos = db.queryPhotos(limit, offset, category, favorites, query, personId, nsfw)
         return jsonResponse(photos.toString())
       }
 
       // 4. Categorías / Álbumes
-      if (path == "/api/explore/categories") {
+      if (path == "/api/explore/categories" || path == "/api/albums") {
         val cats = db.getCategories()
         val res = JSONObject().apply { put("categories", cats) }
         return jsonResponse(res.toString())
-      }
-
-      if (path == "/api/albums") {
-        val cats = db.getCategories()
-        return jsonResponse(cats.toString())
       }
 
       // 5. Duplicados
@@ -66,161 +69,155 @@ class LocalApiRouter(private val context: Context, private val db: LocalDatabase
         return jsonResponse(dups.toString())
       }
 
-      // 6. Escáner
-      if (path == "/api/scanner/start") {
-        return jsonResponse(JSONObject().apply {
-          put("success", true)
-          put("message", "Escaneo iniciado")
-        }.toString())
+      // 6. Carpetas del Dispositivo
+      if (path == "/api/folders") {
+        val folders = db.getDeviceFolders()
+        val res = JSONObject().apply { put("folders", folders) }
+        return jsonResponse(res.toString())
       }
 
-      if (path == "/api/scanner/status") {
-        return jsonResponse(JSONObject().apply {
-          put("isScanning", scanner.isScanning)
-          put("processed", scanner.processed)
-          put("total", scanner.totalFound)
-          put("currentFile", scanner.currentFile)
-        }.toString())
+      if (path == "/api/folders/rescan" || path == "/api/scanner/start") {
+        CoroutineScope(Dispatchers.Default).launch { scanner.scanDevicePhotos() }
+        return jsonResponse("{\"success\":true}")
       }
 
-      // 7. Miniatura de foto (/api/photos/:id/thumbnail)
-      val thumbMatch = Regex("""/api/photos/(\d+)/thumbnail""").find(path)
-      if (thumbMatch != null) {
-        val photoId = thumbMatch.groupValues[1].toLongOrNull() ?: return null
-        return getPhotoThumbnail(photoId)
+      // 7. Personas & Caras (IA)
+      if (path == "/api/faces/stats") {
+        val stats = db.getFacesStats()
+        return jsonResponse(stats.toString())
       }
 
-      // 8. Foto original (/api/photos/:id/raw)
-      val rawMatch = Regex("""/api/photos/(\d+)/raw""").find(path)
-      if (rawMatch != null) {
-        val photoId = rawMatch.groupValues[1].toLongOrNull() ?: return null
-        return getPhotoRaw(photoId)
+      if (path == "/api/faces/persons") {
+        val persons = db.getPersonsList()
+        val res = JSONObject().apply { put("persons", persons) }
+        return jsonResponse(res.toString())
       }
 
-      // 9. Detalle de foto (/api/photos/:id)
-      val photoMatch = Regex("""/api/photos/(\d+)""").find(path)
-      if (photoMatch != null) {
-        val photoId = photoMatch.groupValues[1].toLongOrNull() ?: return null
-        if (request.method == "DELETE") {
-          db.deletePhoto(photoId)
-          return jsonResponse(JSONObject().apply { put("success", true) }.toString())
+      if (path == "/api/faces/scan") {
+        aiManager.startFaceScan()
+        return jsonResponse("{\"success\":true}")
+      }
+
+      if (path == "/api/faces/stop") {
+        aiManager.stopFaceScan()
+        return jsonResponse("{\"success\":true}")
+      }
+
+      if (path == "/api/faces/status") {
+        val status = aiManager.getFacesStatus()
+        return jsonResponse(status.toString())
+      }
+
+      if (path.startsWith("/api/faces/persons/") && path.endsWith("/rename")) {
+        val personId = path.removePrefix("/api/faces/persons/").removeSuffix("/rename").toLongOrNull()
+        if (personId != null) {
+          db.renamePerson(personId, "Persona $personId")
         }
-        val photo = db.getPhotoById(photoId)
-        if (photo != null) {
-          return jsonResponse(photo.toString())
+        return jsonResponse("{\"success\":true}")
+      }
+
+      if (path == "/api/faces/stream") {
+        val status = aiManager.getFacesStatus()
+        val sseData = "event: status\ndata: " + status.toString() + "\n\n"
+        return WebResourceResponse("text/event-stream", "utf-8", ByteArrayInputStream(sseData.toByteArray()))
+      }
+
+      // 8. Contenido Sensible (IA)
+      if (path == "/api/nsfw/stats") {
+        val stats = db.getNsfwStats()
+        return jsonResponse(stats.toString())
+      }
+
+      if (path == "/api/nsfw/scan") {
+        aiManager.startNsfwScan()
+        return jsonResponse("{\"success\":true}")
+      }
+
+      if (path == "/api/nsfw/stop") {
+        aiManager.stopNsfwScan()
+        return jsonResponse("{\"success\":true}")
+      }
+
+      if (path == "/api/nsfw/status") {
+        val status = aiManager.getNsfwStatus()
+        return jsonResponse(status.toString())
+      }
+
+      if (path.endsWith("/toggle-nsfw")) {
+        val parts = path.split("/")
+        val photoId = parts.getOrNull(3)?.toLongOrNull()
+        if (photoId != null) {
+          db.toggleNsfw(photoId)
         }
+        return jsonResponse("{\"success\":true}")
       }
 
-      // 10. Favorito (/api/photos/:id/favorite)
-      val favMatch = Regex("""/api/photos/(\d+)/favorite""").find(path)
-      if (favMatch != null) {
-        val photoId = favMatch.groupValues[1].toLongOrNull() ?: return null
-        db.toggleFavorite(photoId)
-        val photo = db.getPhotoById(photoId)
-        return jsonResponse(JSONObject().apply {
-          put("success", true)
-          put("photo", photo)
-        }.toString())
+      if (path == "/api/nsfw/stream") {
+        val status = aiManager.getNsfwStatus()
+        val sseData = "event: status\ndata: " + status.toString() + "\n\n"
+        return WebResourceResponse("text/event-stream", "utf-8", ByteArrayInputStream(sseData.toByteArray()))
       }
 
-      // 11. Info del servidor local
-      if (path == "/api/server-info") {
-        val stats = db.getStats()
-        return jsonResponse(JSONObject().apply {
-          put("status", "ok")
-          put("mode", "local_android")
-          put("app", "Fotos Supreme Móvil")
-          put("total_photos", stats.optInt("total_photos", 0))
-        }.toString())
+      // 9. Miniaturas
+      if (path.startsWith("/api/photos/") && path.endsWith("/thumbnail")) {
+        val parts = path.split("/")
+        val id = parts.getOrNull(3)?.toLongOrNull() ?: return null
+        val photo = db.getPhotoById(id) ?: return null
+        val filePath = photo.optString("file_path")
+        val file = File(filePath)
+        if (!file.exists()) return null
+
+        val thumb = ThumbnailUtils.extractThumbnail(
+          BitmapFactory.decodeFile(file.absolutePath),
+          256,
+          256
+        )
+
+        val bos = ByteArrayOutputStream()
+        thumb.compress(Bitmap.CompressFormat.JPEG, 75, bos)
+        val bis = ByteArrayInputStream(bos.toByteArray())
+        return WebResourceResponse("image/jpeg", null, bis)
       }
 
-      return jsonResponse(JSONObject().apply { put("success", true) }.toString())
+      // 10. Imagen RAW completa
+      if (path.startsWith("/api/photos/") && path.endsWith("/raw")) {
+        val parts = path.split("/")
+        val id = parts.getOrNull(3)?.toLongOrNull() ?: return null
+        val photo = db.getPhotoById(id) ?: return null
+        val filePath = photo.optString("file_path")
+        val file = File(filePath)
+        if (!file.exists()) return null
 
+        val mime = when {
+          filePath.endsWith(".png", true) -> "image/png"
+          filePath.endsWith(".webp", true) -> "image/webp"
+          else -> "image/jpeg"
+        }
+        return WebResourceResponse(mime, null, FileInputStream(file))
+      }
+
+      // 11. Favorito toggle
+      if (path.startsWith("/api/photos/") && path.endsWith("/favorite")) {
+        val parts = path.split("/")
+        val id = parts.getOrNull(3)?.toLongOrNull() ?: return null
+        db.toggleFavorite(id)
+        return jsonResponse("{\"success\":true}")
+      }
+
+      return jsonResponse("{\"success\":true}")
     } catch (e: Exception) {
-      return jsonResponse(JSONObject().apply {
-        put("error", e.message ?: "Error interno")
-      }.toString(), statusCode = 500)
+      e.printStackTrace()
+      return jsonResponse("{\"error\":\"${e.message}\"}")
     }
   }
 
-  private fun getPhotoThumbnail(photoId: Long): WebResourceResponse? {
-    val cacheDir = File(context.cacheDir, "thumbnails")
-    if (!cacheDir.exists()) cacheDir.mkdirs()
-    val cacheFile = File(cacheDir, "$photoId.jpg")
-
-    if (cacheFile.exists() && cacheFile.length() > 0) {
-      return WebResourceResponse("image/jpeg", null, FileInputStream(cacheFile))
-    }
-
-    val photo = db.getPhotoById(photoId) ?: return null
-    val filePath = photo.optString("file_path", "")
-    if (filePath.isEmpty()) return null
-
-    try {
-      val file = File(filePath)
-      val bitmap: Bitmap? = if (file.exists()) {
-        val options = BitmapFactory.Options().apply {
-          inJustDecodeBounds = true
-        }
-        BitmapFactory.decodeFile(filePath, options)
-
-        val targetSize = 250
-        var sample = 1
-        while (options.outWidth / (sample * 2) >= targetSize && options.outHeight / (sample * 2) >= targetSize) {
-          sample *= 2
-        }
-
-        val decodeOptions = BitmapFactory.Options().apply {
-          inSampleSize = sample
-          inPreferredConfig = Bitmap.Config.RGB_565
-        }
-        BitmapFactory.decodeFile(filePath, decodeOptions)
-      } else {
-        null
-      }
-
-      if (bitmap != null) {
-        val outStream = ByteArrayOutputStream()
-        bitmap.compress(Bitmap.CompressFormat.JPEG, 75, outStream)
-        val bytes = outStream.toByteArray()
-
-        try {
-          cacheFile.writeBytes(bytes)
-        } catch (e: Exception) {}
-
-        bitmap.recycle()
-        return WebResourceResponse("image/jpeg", null, ByteArrayInputStream(bytes))
-      }
-    } catch (e: Exception) {}
-
-    return null
-  }
-
-  private fun getPhotoRaw(photoId: Long): WebResourceResponse? {
-    val photo = db.getPhotoById(photoId) ?: return null
-    val filePath = photo.optString("file_path", "")
-    if (filePath.isEmpty()) return null
-
-    val file = File(filePath)
-    if (file.exists()) {
-      val mime = when (file.extension.lowercase()) {
-        "png" -> "image/png"
-        "webp" -> "image/webp"
-        "gif" -> "image/gif"
-        else -> "image/jpeg"
-      }
-      return WebResourceResponse(mime, null, FileInputStream(file))
-    }
-    return null
-  }
-
-  private fun jsonResponse(json: String, statusCode: Int = 200): WebResourceResponse {
-    val bytes = json.toByteArray(Charsets.UTF_8)
-    val stream = ByteArrayInputStream(bytes)
+  private fun jsonResponse(data: String): WebResourceResponse {
+    val stream: InputStream = ByteArrayInputStream(data.toByteArray(Charsets.UTF_8))
     val headers = mapOf(
       "Access-Control-Allow-Origin" to "*",
-      "Content-Type" to "application/json; charset=utf-8"
+      "Access-Control-Allow-Methods" to "GET, POST, OPTIONS",
+      "Access-Control-Allow-Headers" to "Content-Type"
     )
-    return WebResourceResponse("application/json", "utf-8", statusCode, "OK", headers, stream)
+    return WebResourceResponse("application/json", "utf-8", 200, "OK", headers, stream)
   }
 }

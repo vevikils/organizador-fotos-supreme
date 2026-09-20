@@ -409,36 +409,23 @@
         </section>
 
         <!-- VISTA 9: CARPETAS Y CONFIGURACIÓN -->
+                <!-- VISTA 9: ÁLBUMES Y CARPETAS DEL DISPOSITIVO -->
         <section class="view-panel" id="view-folders">
-          <div class="view-header">
+          <div class="view-header flex-between">
             <div>
-              <h2 class="view-title">Carpetas Monitoreadas</h2>
-              <p class="view-subtitle">Configura qué directorios de tu ordenador se analizan para fotos.</p>
+              <h2 class="view-title">
+                <span class="material-symbols-outlined title-icon" style="color: #3b82f6;">folder_special</span>
+                Álbumes del Dispositivo
+              </h2>
+              <p class="view-subtitle">Carpetas y colecciones encontradas en el almacenamiento de tu móvil.</p>
             </div>
+            <button class="btn btn-primary btn-pill" id="btn-rescan-folders">
+              <span class="material-symbols-outlined">sync</span>
+              <span>Re-escanear Móvil</span>
+            </button>
           </div>
 
-          <div class="folders-manager">
-            <div class="add-folder-card">
-              <h3>Añadir Carpeta</h3>
-              <p>Selecciona cualquier carpeta o disco de tu ordenador para indexar automáticamente.</p>
-              <div class="add-folder-input-group">
-                <input type="text" id="custom-folder-path" placeholder="C:\Users\...\Imágenes" class="folder-input">
-                <button class="btn btn-secondary" id="btn-browse-folder">
-                  <span class="material-symbols-outlined">folder_open</span>
-                  Examinar...
-                </button>
-                <button class="btn btn-primary" id="btn-add-folder">
-                  <span class="material-symbols-outlined">add</span>
-                  Añadir
-                </button>
-              </div>
-            </div>
-
-            <div class="folders-list-card">
-              <h3>Carpetas en Seguimiento</h3>
-              <div class="folders-list" id="folders-list"></div>
-            </div>
-          </div>
+          <div class="device-folders-grid" id="folders-list"></div>
         </section>
 
         <!-- VISTA NSFW: CONTENIDO SENSIBLE (IA) -->
