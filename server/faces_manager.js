@@ -1,6 +1,14 @@
 const { spawn } = require('child_process');
 const path = require('path');
-const { stmts } = require('./db');
+const { stmts, STORAGE_ROOT } = require('./db');
+
+function getUnpackedPath(targetPath) {
+  if (targetPath && targetPath.includes('app.asar')) {
+    return targetPath.replace('app.asar', 'app.asar.unpacked');
+  }
+  return targetPath;
+}
+
 
 class FacesManager {
   constructor() {
@@ -56,7 +64,7 @@ class FacesManager {
       return { success: false, message: 'El escaneo facial ya está en curso' };
     }
 
-    const scriptPath = path.join(__dirname, 'faces_worker.py');
+    const scriptPath = getUnpackedPath(path.join(__dirname, 'faces_worker.py'));
     const pythonExe = 'python';
 
     let initialTotal = 0;
@@ -93,7 +101,8 @@ class FacesManager {
         '--scan',
         '--batch-size', String(batchSize)
       ], {
-        cwd: path.join(__dirname, '..'),
+        cwd: getUnpackedPath(path.join(__dirname, '..')),
+        env: { ...process.env, ORGANIZADOR_STORAGE_DIR: STORAGE_ROOT },
         stdio: ['ignore', 'pipe', 'pipe']
       });
 

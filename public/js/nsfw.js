@@ -187,6 +187,18 @@ const nsfwManagerClient = {
       this.updateBadge();
     });
 
+    this.eventSource.addEventListener('scan_error', (e) => {
+      this.isScanning = false;
+      this.showScanBanner(false);
+      this.updateBadge();
+      try {
+        const data = JSON.parse(e.data);
+        alert(`Error en Escáner IA: ${data.message || 'El proceso de IA no pudo completarse.'}`);
+      } catch (err) {
+        alert('Error en el escáner de IA.');
+      }
+    });
+
     this.eventSource.addEventListener('status', (e) => {
       try {
         const data = JSON.parse(e.data);
@@ -231,6 +243,7 @@ const nsfwManagerClient = {
 
   async startAiScan() {
     try {
+      this.showScanBanner(true);
       const res = await fetch('/api/nsfw/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -238,11 +251,15 @@ const nsfwManagerClient = {
       });
       const data = await res.json();
       if (data.success) {
-        this.showScanBanner(true);
         this.updateBadge();
+      } else {
+        this.showScanBanner(false);
+        alert(data.message || 'No se pudo iniciar el análisis de IA');
       }
     } catch (e) {
+      this.showScanBanner(false);
       console.error('Error iniciando escaneo NSFW:', e);
+      alert('Error de conexión al iniciar el escaneo de IA');
     }
   },
 

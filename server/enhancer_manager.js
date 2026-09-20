@@ -1,5 +1,13 @@
 const { spawn } = require('child_process');
 const path = require('path');
+
+function getUnpackedPath(targetPath) {
+  if (targetPath && targetPath.includes('app.asar')) {
+    return targetPath.replace('app.asar', 'app.asar.unpacked');
+  }
+  return targetPath;
+}
+
 const fs = require('fs');
 const os = require('os');
 const { stmts, STORAGE_ROOT } = require('./db');
@@ -38,7 +46,7 @@ class EnhancerManager {
 
     this.jobs.set(jobId, job);
 
-    const scriptPath = path.join(__dirname, 'enhancer_worker.py');
+    const scriptPath = getUnpackedPath(path.join(__dirname, 'enhancer_worker.py'));
     const args = [
       scriptPath,
       '--input', filePath,

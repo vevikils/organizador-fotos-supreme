@@ -30,10 +30,32 @@ _model_name = None
 _device = None
 
 def get_base_dir():
+    env_storage = os.environ.get('ORGANIZADOR_STORAGE_DIR')
+    if env_storage and Path(env_storage).exists():
+        return Path(env_storage)
+    appdata = os.environ.get('APPDATA')
+    if appdata:
+        app_p = Path(appdata) / "OrganizadorSupremoDeFotos"
+        if app_p.exists():
+            return app_p
     return Path(__file__).resolve().parent.parent
 
-def get_db_path():
-    return get_base_dir() / "data" / "photos.db"
+def get_db_path(custom_db_path=None):
+    if custom_db_path:
+        p = Path(custom_db_path)
+        if p.exists():
+            return p
+    env_storage = os.environ.get('ORGANIZADOR_STORAGE_DIR')
+    if env_storage:
+        p = Path(env_storage) / "data" / "photos.db"
+        if p.exists():
+            return p
+    appdata = os.environ.get('APPDATA')
+    if appdata:
+        p = Path(appdata) / "OrganizadorSupremoDeFotos" / "data" / "photos.db"
+        if p.exists():
+            return p
+    return Path(__file__).resolve().parent.parent / "data" / "photos.db"
 
 def resolve_target_path(base_dir, thumb_path, file_path):
     """
@@ -170,7 +192,7 @@ def classify_single_file(file_path):
     except Exception as e:
         return {'error': str(e), 'file_path': file_path, 'is_nsfw': 0, 'score': 0.0, 'label': 'sfw'}
 
-def scan_database(batch_size=16, threshold=0.55):
+def scan_database(db_path=None, storage_dir=None, batch_size=16, threshold=0.55):
     """
     Escaner continuo directo sobre SQLite optimizado para >500.000 fotos.
     - Descarte instantaneo de miniaturas y archivos < 1 KB
@@ -179,16 +201,22 @@ def scan_database(batch_size=16, threshold=0.55):
     - Control estricto de memoria (GC y vaciado de tensores)
     """
     import torch
-    base_dir = get_base_dir()
-    db_path = get_db_path()
-    if not db_path.exists():
-        print(json.dumps({"type": "error", "message": f"Base de datos no encontrada en {db_path}"}), flush=True)
+    db_file = get_db_path(db_path)
+    if not db_file.exists():
+        print(json.dumps({"type": "error", "message": f"Base de datos no encontrada en {db_file}"}), flush=True)
         return
+
+    if storage_dir and Path(storage_dir).exists():
+        base_dir = Path(storage_dir)
+    elif db_file.parent.name == 'data' and db_file.parent.parent.exists():
+        base_dir = db_file.parent.parent
+    else:
+        base_dir = get_base_dir()
 
     init_model()
     print(json.dumps({"type": "ready", "model": _model_name}), flush=True)
 
-    conn = sqlite3.connect(str(db_path), timeout=60.0)
+    conn = sqlite3.connect(str(db_file), timeout=60.0)
     conn.execute("PRAGMA journal_mode=WAL;")
     conn.execute("PRAGMA synchronous=NORMAL;")
     cursor = conn.cursor()
@@ -413,6 +441,8 @@ def main():
     parser.add_argument("--file", type=str, help="Clasificar un archivo de imagen especifico")
     parser.add_argument("--batch-size", type=int, default=16, help="Tamano de lote para inferencia (def: 16)")
     parser.add_argument("--threshold", type=float, default=0.55, help="Umbral de confianza NSFW (def: 0.55)")
+    parser.add_argument("--db", type=str, default=None, help="Ruta a photos.db")
+    parser.add_argument("--storage-dir", type=str, default=None, help="Ruta al directorio de almacenamiento")
     args = parser.parse_args()
 
     if args.test:
@@ -429,10 +459,10 @@ def main():
         return
 
     if args.scan:
-        scan_database(batch_size=args.batch_size, threshold=args.threshold)
+        scan_database(db_path=args.db, storage_dir=args.storage_dir, batch_size=args.batch_size, threshold=args.threshold)
         return
 
-    scan_database(batch_size=args.batch_size, threshold=args.threshold)
+    scan_database(db_path=args.db, storage_dir=args.storage_dir, batch_size=args.batch_size, threshold=args.threshold)
 
 if __name__ == "__main__":
     main()

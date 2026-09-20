@@ -172,13 +172,13 @@ function buildStatements(eng) {
 
     getNsfwStats: eng.prepare(`
       SELECT 
-        (SELECT COUNT(*) FROM photos WHERE is_deleted = 0 AND is_tiny = 0 AND file_size >= 1024) as total_photos,
-        (SELECT COUNT(*) FROM photos WHERE is_deleted = 0 AND is_tiny = 0 AND file_size >= 1024 AND nsfw_checked = 1) as checked_photos,
-        (SELECT COUNT(*) FROM photos WHERE is_deleted = 0 AND is_tiny = 0 AND file_size >= 1024 AND is_nsfw = 1) as nsfw_photos,
-        (SELECT COUNT(*) FROM photos WHERE is_deleted = 0 AND is_tiny = 0 AND file_size >= 1024 AND is_nsfw = 0 AND nsfw_checked = 1) as sfw_photos,
-        (SELECT COUNT(*) FROM photos WHERE is_deleted = 0 AND is_tiny = 0 AND file_size >= 1024 AND nsfw_checked = 0) as unclassified_photos
+        COUNT(*) as total_photos,
+        COALESCE(SUM(CASE WHEN nsfw_checked = 1 THEN 1 ELSE 0 END), 0) as checked_photos,
+        COALESCE(SUM(CASE WHEN is_nsfw = 1 THEN 1 ELSE 0 END), 0) as nsfw_photos,
+        COALESCE(SUM(CASE WHEN is_nsfw = 0 AND nsfw_checked = 1 THEN 1 ELSE 0 END), 0) as sfw_photos,
+        COALESCE(SUM(CASE WHEN nsfw_checked = 0 THEN 1 ELSE 0 END), 0) as unclassified_photos
       FROM photos 
-      WHERE is_deleted = 0
+      WHERE is_deleted = 0 AND is_tiny = 0 AND file_size >= 1024
     `),
 
     toggleNsfw: eng.prepare('UPDATE photos SET is_nsfw = (1 - is_nsfw), nsfw_checked = 1 WHERE id = ?'),
@@ -722,6 +722,7 @@ function getCategoryCounts() {
 module.exports = {
   STORAGE_ROOT,
   DATA_DIR,
+  DB_FILE,
   CACHE_DIR,
   FACES_CACHE_DIR,
   MINIATURAS_DIR,

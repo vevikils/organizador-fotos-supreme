@@ -1,6 +1,18 @@
 const { spawn } = require('child_process');
 const path = require('path');
-const { db, stmts } = require('./db');
+const { db, stmts, DB_FILE, STORAGE_ROOT } = require('./db');
+
+function getUnpackedPath(targetPath) {
+  if (targetPath && targetPath.includes('app.asar')) {
+    return targetPath.replace('app.asar', 'app.asar.unpacked');
+  }
+  return targetPath;
+}
+
+function getPythonExe() {
+  if (process.env.PYTHON_PATH) return process.env.PYTHON_PATH;
+  return 'python';
+}
 
 class NsfwManager {
   constructor() {
@@ -59,8 +71,9 @@ class NsfwManager {
       return { success: false, message: 'El análisis de IA ya está en curso' };
     }
 
-    const scriptPath = path.join(__dirname, 'nsfw_worker.py');
-    const pythonExe = 'python';
+    const scriptPath = getUnpackedPath(path.join(__dirname, 'nsfw_worker.py'));
+    const pythonExe = getPythonExe();
+    const appDir = getUnpackedPath(path.join(__dirname, '..'));
 
     // Asegurar que cualquier cambio en memoria este guardado en disco antes de que Python acceda
     try { db.save(); } catch (e) {}
@@ -92,14 +105,24 @@ class NsfwManager {
     });
 
     try {
+      let stderrBuffer = '';
+
       this.process = spawn(pythonExe, [
         '-u',
         scriptPath,
         '--scan',
         '--batch-size', String(batchSize),
-        '--threshold', String(threshold)
+        '--threshold', String(threshold),
+        '--db', DB_FILE,
+        '--storage-dir', STORAGE_ROOT
       ], {
-        cwd: path.join(__dirname, '..'),
+        cwd: appDir,
+        env: {
+          ...process.env,
+          ORGANIZADOR_STORAGE_DIR: STORAGE_ROOT,
+          PYTHONUNBUFFERED: '1',
+          PYTHONIOENCODING: 'utf-8'
+        },
         stdio: ['ignore', 'pipe', 'pipe']
       });
 
@@ -117,16 +140,19 @@ class NsfwManager {
             const data = JSON.parse(trimmed);
             this.handleWorkerMessage(data);
           } catch (e) {
-            // Ignorar líneas no JSON (ej. avisos informativos)
+            // Ignorar lineas no JSON
           }
         }
       });
 
       this.process.stderr.on('data', (chunk) => {
-        console.error('[NSFW Worker Error]:', chunk.toString());
+        const text = chunk.toString();
+        stderrBuffer += text;
+        console.error('[NSFW Worker Error]:', text);
       });
 
       this.process.on('close', (code) => {
+        const wasScanning = this.isScanning;
         this.isScanning = false;
         this.process = null;
         this.currentStats.isScanning = false;
@@ -137,7 +163,15 @@ class NsfwManager {
         } catch (e) {
           console.error('[NSFW Manager]: Error recargando DB tras analisis:', e);
         }
-        this.broadcast('complete', this.getStatus());
+
+        if (code !== 0 && code !== null) {
+          console.error(`[NSFW Manager]: Worker finalizó con código ${code}. Stderr: ${stderrBuffer}`);
+          this.broadcast('scan_error', {
+            message: stderrBuffer.trim() || `El proceso de IA finalizó inesperadamente (código ${code})`
+          });
+        } else {
+          this.broadcast('complete', this.getStatus());
+        }
       });
 
       this.process.on('error', (err) => {
@@ -145,7 +179,7 @@ class NsfwManager {
         this.isScanning = false;
         this.process = null;
         this.currentStats.isScanning = false;
-        this.broadcast('error', { message: err.message });
+        this.broadcast('scan_error', { message: `No se pudo iniciar Python: ${err.message}` });
       });
 
       return { success: true, message: 'Análisis de IA iniciado' };
@@ -236,6 +270,14 @@ class NsfwManager {
     } else if (data.type === 'complete') {
       this.currentStats.percentage = 100;
       this.broadcast('complete', this.getStatus());
+    } else if (data.type === 'error') {
+      this.isScanning = false;
+      if (this.process) {
+        try { this.process.kill(); } catch (e) {}
+        this.process = null;
+      }
+      this.currentStats.isScanning = false;
+      this.broadcast('scan_error', { message: data.message || 'Error en el escáner de IA' });
     }
   }
 }

@@ -45,7 +45,7 @@ async function createWindow(port) {
     minWidth: 980,
     minHeight: 640,
     backgroundColor: '#121212',
-    title: 'Organizador Supremo de Fotos v1.1.0',
+    title: 'Organizador Supremo de Fotos v1.1.1',
     icon: iconPath,
     autoHideMenuBar: true,
     show: true,
