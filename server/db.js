@@ -25,7 +25,9 @@ process.env.ORGANIZADOR_STORAGE_DIR = STORAGE_ROOT;
 const DATA_DIR = path.join(STORAGE_ROOT, 'data');
 const CACHE_DIR = path.join(STORAGE_ROOT, 'cache', 'thumbnails');
 const FACES_CACHE_DIR = path.join(STORAGE_ROOT, 'cache', 'faces');
+const MINIATURAS_DIR = path.join(STORAGE_ROOT, 'miniaturas');
 const DB_FILE = path.join(DATA_DIR, 'photos.db');
+if (!fs.existsSync(MINIATURAS_DIR)) fs.mkdirSync(MINIATURAS_DIR, { recursive: true });
 
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive: true });
@@ -100,7 +102,7 @@ function buildStatements(eng) {
     getTimelineGroups: eng.prepare(`
       SELECT year, month, COUNT(*) as count, MIN(id) as sample_photo_id
       FROM photos 
-      WHERE is_deleted = 0 AND year IS NOT NULL AND year > 1970
+      WHERE is_deleted = 0 AND is_tiny = 0 AND file_size >= 1024 AND year IS NOT NULL AND year > 1970
       GROUP BY year, month 
       ORDER BY year DESC, month DESC
     `),
@@ -108,7 +110,7 @@ function buildStatements(eng) {
     getLocations: eng.prepare(`
       SELECT city, country, COUNT(*) as count, AVG(latitude) as latitude, AVG(longitude) as longitude, MIN(id) as sample_photo_id
       FROM photos 
-      WHERE is_deleted = 0 AND city IS NOT NULL AND latitude IS NOT NULL
+      WHERE is_deleted = 0 AND is_tiny = 0 AND file_size >= 1024 AND city IS NOT NULL AND latitude IS NOT NULL
       GROUP BY city, country 
       ORDER BY count DESC
     `),
@@ -116,7 +118,7 @@ function buildStatements(eng) {
     getCategories: eng.prepare(`
       SELECT category, COUNT(*) as count, MIN(id) as sample_photo_id
       FROM photos 
-      WHERE is_deleted = 0 
+      WHERE is_deleted = 0 AND is_tiny = 0 AND file_size >= 1024
       GROUP BY category 
       ORDER BY count DESC
     `),
@@ -124,7 +126,7 @@ function buildStatements(eng) {
     getColors: eng.prepare(`
       SELECT color_group, COUNT(*) as count, MIN(dominant_color) as sample_hex, MIN(id) as sample_photo_id
       FROM photos 
-      WHERE is_deleted = 0 AND color_group IS NOT NULL
+      WHERE is_deleted = 0 AND is_tiny = 0 AND file_size >= 1024 AND color_group IS NOT NULL
       GROUP BY color_group 
       ORDER BY count DESC
     `),
@@ -132,7 +134,7 @@ function buildStatements(eng) {
     getCameras: eng.prepare(`
       SELECT COALESCE(camera_model, camera_make, 'Sin metadatos') as camera, COUNT(*) as count, MIN(id) as sample_photo_id
       FROM photos 
-      WHERE is_deleted = 0 AND (camera_model IS NOT NULL OR camera_make IS NOT NULL)
+      WHERE is_deleted = 0 AND is_tiny = 0 AND file_size >= 1024 AND (camera_model IS NOT NULL OR camera_make IS NOT NULL)
       GROUP BY camera 
       ORDER BY count DESC
     `),
@@ -157,24 +159,24 @@ function buildStatements(eng) {
 
     getStats: eng.prepare(`
       SELECT 
-        COUNT(*) as total_photos,
-        COALESCE(SUM(file_size), 0) as total_size,
+        (SELECT COUNT(*) FROM photos WHERE is_deleted = 0 AND is_tiny = 0 AND file_size >= 1024) as total_photos,
+        (SELECT COALESCE(SUM(file_size), 0) FROM photos WHERE is_deleted = 0 AND is_tiny = 0 AND file_size >= 1024) as total_size,
         COUNT(DISTINCT city) as total_locations,
-        (SELECT COUNT(*) FROM photos WHERE is_favorite = 1 AND is_deleted = 0) as total_favorites,
+        (SELECT COUNT(*) FROM photos WHERE is_favorite = 1 AND is_deleted = 0 AND is_tiny = 0 AND file_size >= 1024) as total_favorites,
         (SELECT COUNT(*) FROM albums) as total_albums,
-        (SELECT COUNT(*) FROM photos WHERE is_ai = 1 AND is_deleted = 0) as total_ai,
-        (SELECT COUNT(*) FROM photos WHERE is_tiny = 1 AND is_deleted = 0) as total_tiny
+        (SELECT COUNT(*) FROM photos WHERE is_ai = 1 AND is_deleted = 0 AND is_tiny = 0 AND file_size >= 1024) as total_ai,
+        (SELECT COUNT(*) FROM photos WHERE is_deleted = 0 AND (is_tiny = 1 OR file_size < 1024)) as total_tiny
       FROM photos 
-      WHERE is_deleted = 0
+      WHERE is_deleted = 0 AND is_tiny = 0 AND file_size >= 1024
     `),
 
     getNsfwStats: eng.prepare(`
       SELECT 
-        COUNT(*) as total_photos,
-        (SELECT COUNT(*) FROM photos WHERE is_deleted = 0 AND nsfw_checked = 1) as checked_photos,
-        (SELECT COUNT(*) FROM photos WHERE is_deleted = 0 AND is_nsfw = 1) as nsfw_photos,
-        (SELECT COUNT(*) FROM photos WHERE is_deleted = 0 AND is_nsfw = 0 AND nsfw_checked = 1) as sfw_photos,
-        (SELECT COUNT(*) FROM photos WHERE is_deleted = 0 AND nsfw_checked = 0) as unclassified_photos
+        (SELECT COUNT(*) FROM photos WHERE is_deleted = 0 AND is_tiny = 0 AND file_size >= 1024) as total_photos,
+        (SELECT COUNT(*) FROM photos WHERE is_deleted = 0 AND is_tiny = 0 AND file_size >= 1024 AND nsfw_checked = 1) as checked_photos,
+        (SELECT COUNT(*) FROM photos WHERE is_deleted = 0 AND is_tiny = 0 AND file_size >= 1024 AND is_nsfw = 1) as nsfw_photos,
+        (SELECT COUNT(*) FROM photos WHERE is_deleted = 0 AND is_tiny = 0 AND file_size >= 1024 AND is_nsfw = 0 AND nsfw_checked = 1) as sfw_photos,
+        (SELECT COUNT(*) FROM photos WHERE is_deleted = 0 AND is_tiny = 0 AND file_size >= 1024 AND nsfw_checked = 0) as unclassified_photos
       FROM photos 
       WHERE is_deleted = 0
     `),
@@ -370,6 +372,9 @@ async function initDatabase() {
   try { engineInstance.exec('CREATE INDEX IF NOT EXISTS idx_photos_faces_scanned ON photos(faces_scanned);'); } catch (e) {}
   try { engineInstance.exec('CREATE INDEX IF NOT EXISTS idx_photos_is_ai ON photos(is_ai);'); } catch (e) {}
   try { engineInstance.exec('CREATE INDEX IF NOT EXISTS idx_photos_is_tiny ON photos(is_tiny);'); } catch (e) {}
+  try { engineInstance.exec('CREATE INDEX IF NOT EXISTS idx_photos_nsfw_unprocessed ON photos(nsfw_checked, is_deleted, is_tiny);'); } catch (e) {}
+  try { engineInstance.exec('CREATE INDEX IF NOT EXISTS idx_photos_tiny_size ON photos(is_tiny, file_size);'); } catch (e) {}
+  try { engineInstance.exec('CREATE INDEX IF NOT EXISTS idx_photos_dup_protect ON photos(is_deleted, is_tiny, file_size);'); } catch (e) {}
 
   try {
     const countFolders = engineInstance.prepare('SELECT COUNT(*) as count FROM folders').get();
@@ -391,10 +396,14 @@ const dbReady = initDatabase();
 function queryPhotos({
   limit = 100, offset = 0, year = null, month = null, category = null,
   color = null, camera = null, city = null, country = null, search = null,
-  favorite = false, albumId = null, personId = null, sort = 'date_desc', nsfwFilter = 'all', is_ai = null, is_tiny = null, exclude_tiny = false, max_res = null
+  favorite = false, albumId = null, personId = null, sort = 'date_desc', nsfwFilter = 'all',
+  is_ai = null, isAi = null, is_tiny = null, isTiny = null, exclude_tiny = null, excludeTiny = null, max_res = null
 } = {}) {
   const conditions = ['is_deleted = 0'];
   const params = [];
+
+  const aiParam = is_ai !== null && is_ai !== undefined ? is_ai : isAi;
+  const tinyParam = is_tiny !== null && is_tiny !== undefined ? is_tiny : isTiny;
 
   if (favorite) conditions.push('is_favorite = 1');
   if (nsfwFilter === 'safe_only') conditions.push('is_nsfw = 0');
@@ -413,7 +422,14 @@ function queryPhotos({
     conditions.push('month = ?');
     params.push(Number(month));
   }
-  if (category) { conditions.push('category = ?'); params.push(category); }
+  if (category) {
+    if (category === 'tiny' || category === 'miniaturas') {
+      conditions.push('(is_tiny = 1 OR file_size < 1024 OR category = \'miniaturas\')');
+    } else {
+      conditions.push('category = ?');
+      params.push(category);
+    }
+  }
   if (color) { conditions.push('color_group = ?'); params.push(color); }
   if (camera) { conditions.push('(camera_model = ? OR camera_make = ?)'); params.push(camera, camera); }
   if (city) { conditions.push('city = ?'); params.push(city); }
@@ -423,16 +439,17 @@ function queryPhotos({
     params.push(Number(albumId));
   }
 
-  if (is_ai === '1' || is_ai === true || is_ai === 1) {
+  if (aiParam === '1' || aiParam === true || aiParam === 1) {
     conditions.push('is_ai = 1');
-  } else if (is_ai === '0' || is_ai === false || is_ai === 0) {
+  } else if (aiParam === '0' || aiParam === false || aiParam === 0) {
     conditions.push('is_ai = 0');
   }
 
-  if (is_tiny === '1' || is_tiny === true || is_tiny === 1) {
-    conditions.push('is_tiny = 1');
-  } else if (is_tiny === '0' || is_tiny === false || is_tiny === 0 || exclude_tiny) {
-    conditions.push('is_tiny = 0');
+  // Si se solicita ver miniaturas, filtrar solo miniaturas. Por defecto, EXCLUIRLAS siempre de la galeria normal
+  if (tinyParam === '1' || tinyParam === true || tinyParam === 1 || category === 'tiny' || category === 'miniaturas') {
+    conditions.push('(is_tiny = 1 OR file_size < 1024)');
+  } else {
+    conditions.push('is_tiny = 0 AND file_size >= 1024');
   }
   
   if (max_res !== null && max_res !== undefined && max_res !== '') {
@@ -469,10 +486,10 @@ function findDuplicates(options = { tab: 'all' }) {
     const exactDuplicates = db.prepare(`
       SELECT p.* FROM photos p
       INNER JOIN (
-        SELECT sha256 FROM photos WHERE is_deleted = 0 AND sha256 IS NOT NULL AND sha256 != ''
+        SELECT sha256 FROM photos WHERE is_deleted = 0 AND is_tiny = 0 AND file_size >= 1024 AND sha256 IS NOT NULL AND sha256 != ''
         GROUP BY sha256 HAVING COUNT(*) > 1
       ) dup ON p.sha256 = dup.sha256
-      WHERE p.is_deleted = 0
+      WHERE p.is_deleted = 0 AND p.is_tiny = 0 AND p.file_size >= 1024
       ORDER BY p.sha256, (COALESCE(p.width * p.height, 0)) DESC, p.file_size DESC, p.id ASC
     `).all();
 
@@ -489,7 +506,7 @@ function findDuplicates(options = { tab: 'all' }) {
   } else {
     const countRow = db.prepare(`
       SELECT COUNT(*) as c FROM (
-        SELECT sha256 FROM photos WHERE is_deleted = 0 AND sha256 IS NOT NULL AND sha256 != ''
+        SELECT sha256 FROM photos WHERE is_deleted = 0 AND is_tiny = 0 AND file_size >= 1024 AND sha256 IS NOT NULL AND sha256 != ''
         GROUP BY sha256 HAVING COUNT(*) > 1
       )
     `).get();
@@ -503,10 +520,10 @@ function findDuplicates(options = { tab: 'all' }) {
     const similarPhotos = db.prepare(`
       SELECT p.* FROM photos p
       INNER JOIN (
-        SELECT dhash FROM photos WHERE is_deleted = 0 AND dhash IS NOT NULL AND dhash != ''
+        SELECT dhash FROM photos WHERE is_deleted = 0 AND is_tiny = 0 AND file_size >= 1024 AND dhash IS NOT NULL AND dhash != ''
         GROUP BY dhash HAVING COUNT(*) > 1
       ) dup ON p.dhash = dup.dhash
-      WHERE p.is_deleted = 0
+      WHERE p.is_deleted = 0 AND p.is_tiny = 0 AND p.file_size >= 1024
       ORDER BY p.dhash, (COALESCE(p.width * p.height, 0)) DESC, p.file_size DESC, p.id ASC
     `).all();
 
@@ -524,7 +541,7 @@ function findDuplicates(options = { tab: 'all' }) {
   } else {
     const countRow = db.prepare(`
       SELECT COUNT(*) as c FROM (
-        SELECT dhash FROM photos WHERE is_deleted = 0 AND dhash IS NOT NULL AND dhash != ''
+        SELECT dhash FROM photos WHERE is_deleted = 0 AND is_tiny = 0 AND file_size >= 1024 AND dhash IS NOT NULL AND dhash != ''
         GROUP BY dhash HAVING COUNT(*) > 1
       )
     `).get();
@@ -541,7 +558,8 @@ function findDuplicates(options = { tab: 'all' }) {
 }
 
 function cleanAllDuplicates(type = 'exact') {
-  const deleteStmt = db.prepare('UPDATE photos SET is_deleted = 1 WHERE id = ?');
+  // Proteccion absoluta: Jamas borrar fotos pequenas (< 1 KB) ni miniaturas en limpieza de duplicados
+  const deleteStmt = db.prepare('UPDATE photos SET is_deleted = 1 WHERE id = ? AND is_tiny = 0 AND file_size >= 1024');
   let deletedCount = 0;
   let reclaimedBytes = 0;
 
@@ -553,10 +571,10 @@ function cleanAllDuplicates(type = 'exact') {
         FROM photos p
         INNER JOIN (
           SELECT sha256 FROM photos 
-          WHERE is_deleted = 0 AND sha256 IS NOT NULL AND sha256 != ''
+          WHERE is_deleted = 0 AND is_tiny = 0 AND file_size >= 1024 AND sha256 IS NOT NULL AND sha256 != ''
           GROUP BY sha256 HAVING COUNT(*) > 1
         ) dup ON p.sha256 = dup.sha256
-        WHERE p.is_deleted = 0
+        WHERE p.is_deleted = 0 AND p.is_tiny = 0 AND p.file_size >= 1024
         ORDER BY p.sha256, (COALESCE(p.width * p.height, 0)) DESC, p.file_size DESC, p.id ASC
       `).all();
 
@@ -578,10 +596,10 @@ function cleanAllDuplicates(type = 'exact') {
         FROM photos p
         INNER JOIN (
           SELECT dhash FROM photos 
-          WHERE is_deleted = 0 AND dhash IS NOT NULL AND dhash != ''
+          WHERE is_deleted = 0 AND is_tiny = 0 AND file_size >= 1024 AND dhash IS NOT NULL AND dhash != ''
           GROUP BY dhash HAVING COUNT(*) > 1
         ) dup ON p.dhash = dup.dhash
-        WHERE p.is_deleted = 0
+        WHERE p.is_deleted = 0 AND p.is_tiny = 0 AND p.file_size >= 1024
         ORDER BY p.dhash, (COALESCE(p.width * p.height, 0)) DESC, p.file_size DESC, p.id ASC
       `).all();
 
@@ -606,11 +624,14 @@ function cleanAllDuplicates(type = 'exact') {
   return { deletedCount, reclaimedBytes };
 }
 
-function batchDeletePhotos(photoIds = []) {
+function batchDeletePhotos(photoIds = [], allowTiny = false) {
   if (!Array.isArray(photoIds) || photoIds.length === 0) {
     return { count: 0 };
   }
-  const deleteStmt = db.prepare('UPDATE photos SET is_deleted = 1 WHERE id = ?');
+  // Si no se autoriza explicitamente borrar miniaturas, protegerlas
+  const deleteStmt = allowTiny 
+    ? db.prepare('UPDATE photos SET is_deleted = 1 WHERE id = ?')
+    : db.prepare('UPDATE photos SET is_deleted = 1 WHERE id = ? AND is_tiny = 0 AND file_size >= 1024');
   let count = 0;
 
   db.exec('BEGIN TRANSACTION');
@@ -633,7 +654,7 @@ function getDuplicateStats() {
     const exactRow = db.prepare(`
       SELECT COUNT(*) as exactCount FROM (
         SELECT sha256 FROM photos 
-        WHERE is_deleted = 0 AND sha256 IS NOT NULL AND sha256 != ''
+        WHERE is_deleted = 0 AND is_tiny = 0 AND file_size >= 1024 AND sha256 IS NOT NULL AND sha256 != ''
         GROUP BY sha256 HAVING COUNT(*) > 1
       )
     `).get();
@@ -642,13 +663,13 @@ function getDuplicateStats() {
       SELECT SUM(file_size) - (
         SELECT SUM(max_size) FROM (
           SELECT MAX(file_size) as max_size FROM photos 
-          WHERE is_deleted = 0 AND sha256 IS NOT NULL AND sha256 != ''
+          WHERE is_deleted = 0 AND is_tiny = 0 AND file_size >= 1024 AND sha256 IS NOT NULL AND sha256 != ''
           GROUP BY sha256 HAVING COUNT(*) > 1
         )
       ) as reclaimable FROM photos 
-      WHERE is_deleted = 0 AND sha256 IN (
+      WHERE is_deleted = 0 AND is_tiny = 0 AND file_size >= 1024 AND sha256 IN (
         SELECT sha256 FROM photos 
-        WHERE is_deleted = 0 AND sha256 IS NOT NULL AND sha256 != ''
+        WHERE is_deleted = 0 AND is_tiny = 0 AND file_size >= 1024 AND sha256 IS NOT NULL AND sha256 != ''
         GROUP BY sha256 HAVING COUNT(*) > 1
       )
     `).get();
@@ -667,7 +688,7 @@ function getCategoryCounts() {
   const base = db.prepare(`
     SELECT category, COUNT(*) as count, MIN(id) as sample_photo_id
     FROM photos 
-    WHERE is_deleted = 0 AND is_tiny = 0
+    WHERE is_deleted = 0 AND is_tiny = 0 AND file_size >= 1024 AND category != 'miniaturas'
     GROUP BY category 
     ORDER BY count DESC
   `).all();
@@ -675,13 +696,13 @@ function getCategoryCounts() {
   const aiRow = db.prepare(`
     SELECT COUNT(*) as count, MIN(id) as sample_photo_id
     FROM photos
-    WHERE is_deleted = 0 AND is_ai = 1
+    WHERE is_deleted = 0 AND is_ai = 1 AND is_tiny = 0 AND file_size >= 1024
   `).get();
 
   const tinyRow = db.prepare(`
     SELECT COUNT(*) as count, MIN(id) as sample_photo_id
     FROM photos
-    WHERE is_deleted = 0 AND is_tiny = 1
+    WHERE is_deleted = 0 AND (is_tiny = 1 OR file_size < 1024 OR category = 'miniaturas')
   `).get();
 
   const categories = [];
@@ -703,6 +724,7 @@ module.exports = {
   DATA_DIR,
   CACHE_DIR,
   FACES_CACHE_DIR,
+  MINIATURAS_DIR,
   db,
   dbReady,
   stmts,

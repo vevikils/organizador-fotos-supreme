@@ -12,6 +12,7 @@ import sys
 import os
 import time
 import json
+import gc
 import sqlite3
 import argparse
 from pathlib import Path
@@ -171,9 +172,13 @@ def classify_single_file(file_path):
 
 def scan_database(batch_size=16, threshold=0.55):
     """
-    Escaner continuo directo sobre SQLite.
-    Emite lineas JSON para que Node.js las consuma y envie por SSE.
+    Escaner continuo directo sobre SQLite optimizado para >500.000 fotos.
+    - Descarte instantaneo de miniaturas y archivos < 1 KB
+    - Consultas indexadas sin bloqueos de tabla completa
+    - Throttling inteligente de salida JSON y eventos
+    - Control estricto de memoria (GC y vaciado de tensores)
     """
+    import torch
     base_dir = get_base_dir()
     db_path = get_db_path()
     if not db_path.exists():
@@ -185,15 +190,31 @@ def scan_database(batch_size=16, threshold=0.55):
 
     conn = sqlite3.connect(str(db_path), timeout=60.0)
     conn.execute("PRAGMA journal_mode=WAL;")
+    conn.execute("PRAGMA synchronous=NORMAL;")
     cursor = conn.cursor()
 
-    cursor.execute("SELECT COUNT(*) FROM photos WHERE nsfw_checked = 0 AND is_deleted = 0")
+    # 1. Descarte instantaneo de miniaturas y archivos < 1 KB (evita clasificar miles de iconos innecesariamente)
+    try:
+        cursor.execute("""
+            UPDATE photos 
+            SET is_nsfw = 0, nsfw_score = 0.0, nsfw_label = 'sfw', nsfw_checked = 1 
+            WHERE (is_tiny = 1 OR file_size < 1024) AND nsfw_checked = 0
+        """)
+        skipped_tiny = cursor.rowcount
+        conn.commit()
+        if skipped_tiny > 0:
+            sys.stderr.write(f"[NSFW Worker]: Descartadas {skipped_tiny} miniaturas/<1KB como seguras de inmediato.\n")
+            sys.stderr.flush()
+    except Exception as e:
+        sys.stderr.write(f"[NSFW Worker Aviso miniaturas]: {e}\n")
+
+    cursor.execute("SELECT COUNT(*) FROM photos WHERE nsfw_checked = 0 AND is_deleted = 0 AND is_tiny = 0 AND file_size >= 1024")
     total_unclassified = cursor.fetchone()[0]
 
-    cursor.execute("SELECT COUNT(*) FROM photos WHERE is_deleted = 0")
+    cursor.execute("SELECT COUNT(*) FROM photos WHERE is_deleted = 0 AND is_tiny = 0 AND file_size >= 1024")
     total_photos = cursor.fetchone()[0]
 
-    cursor.execute("SELECT COUNT(*) FROM photos WHERE is_deleted = 0 AND is_nsfw = 1")
+    cursor.execute("SELECT COUNT(*) FROM photos WHERE is_deleted = 0 AND is_tiny = 0 AND file_size >= 1024 AND is_nsfw = 1")
     nsfw_count = cursor.fetchone()[0]
 
     print(json.dumps({
@@ -210,11 +231,13 @@ def scan_database(batch_size=16, threshold=0.55):
 
     processed_count = 0
 
+    last_progress_time = time.time()
+
     while True:
         cursor.execute("""
             SELECT id, file_path, thumbnail_path, file_name 
             FROM photos 
-            WHERE nsfw_checked = 0 AND is_deleted = 0
+            WHERE nsfw_checked = 0 AND is_deleted = 0 AND is_tiny = 0 AND file_size >= 1024
             LIMIT ?
         """, (batch_size,))
         rows = cursor.fetchall()
@@ -256,17 +279,21 @@ def scan_database(batch_size=16, threshold=0.55):
                 WHERE id = ?
             """, (is_nsfw, score, label, photo_id))
             processed_count += 1
-            print(json.dumps({
-                "type": "progress",
-                "id": photo_id,
-                "file_name": file_name,
-                "is_nsfw": is_nsfw,
-                "score": score,
-                "label": label,
-                "processed": processed_count,
-                "total": total_unclassified,
-                "nsfw_total": nsfw_count
-            }), flush=True)
+
+            now = time.time()
+            if is_nsfw or (now - last_progress_time >= 0.25) or (processed_count == total_unclassified):
+                last_progress_time = now
+                print(json.dumps({
+                    "type": "progress",
+                    "id": photo_id,
+                    "file_name": file_name,
+                    "is_nsfw": is_nsfw,
+                    "score": score,
+                    "label": label,
+                    "processed": processed_count,
+                    "total": total_unclassified,
+                    "nsfw_total": nsfw_count
+                }), flush=True)
 
         # Clasificar las imagenes validas con la IA
         if to_classify_images:
@@ -289,17 +316,20 @@ def scan_database(batch_size=16, threshold=0.55):
 
                     processed_count += 1
 
-                    print(json.dumps({
-                        "type": "progress",
-                        "id": photo_id,
-                        "file_name": file_name,
-                        "is_nsfw": is_nsfw,
-                        "score": score,
-                        "label": label,
-                        "processed": processed_count,
-                        "total": total_unclassified,
-                        "nsfw_total": nsfw_count
-                    }), flush=True)
+                    now = time.time()
+                    if is_nsfw or (now - last_progress_time >= 0.25) or (processed_count == total_unclassified):
+                        last_progress_time = now
+                        print(json.dumps({
+                            "type": "progress",
+                            "id": photo_id,
+                            "file_name": file_name,
+                            "is_nsfw": is_nsfw,
+                            "score": score,
+                            "label": label,
+                            "processed": processed_count,
+                            "total": total_unclassified,
+                            "nsfw_total": nsfw_count
+                        }), flush=True)
 
             except Exception as e:
                 # Fallback seguro: procesar una por una para que ninguna anomalia detenga el proceso
@@ -329,17 +359,20 @@ def scan_database(batch_size=16, threshold=0.55):
 
                     processed_count += 1
 
-                    print(json.dumps({
-                        "type": "progress",
-                        "id": photo_id,
-                        "file_name": file_name,
-                        "is_nsfw": is_nsfw,
-                        "score": score,
-                        "label": label,
-                        "processed": processed_count,
-                        "total": total_unclassified,
-                        "nsfw_total": nsfw_count
-                    }), flush=True)
+                    now = time.time()
+                    if is_nsfw or (now - last_progress_time >= 0.25) or (processed_count == total_unclassified):
+                        last_progress_time = now
+                        print(json.dumps({
+                            "type": "progress",
+                            "id": photo_id,
+                            "file_name": file_name,
+                            "is_nsfw": is_nsfw,
+                            "score": score,
+                            "label": label,
+                            "processed": processed_count,
+                            "total": total_unclassified,
+                            "nsfw_total": nsfw_count
+                        }), flush=True)
 
             finally:
                 for img in to_classify_images:
@@ -351,7 +384,20 @@ def scan_database(batch_size=16, threshold=0.55):
         # Siempre confirmar las transacciones de este lote
         conn.commit()
 
+        # Liberar memoria periodicamente para evitar acumulacion en grandes bibliotecas (>500.000 fotos)
+        if processed_count % 250 == 0:
+            gc.collect()
+            if torch.cuda.is_available():
+                try:
+                    torch.cuda.empty_cache()
+                except Exception:
+                    pass
+
     conn.commit()
+    try:
+        conn.execute("PRAGMA wal_checkpoint(TRUNCATE);")
+    except Exception:
+        pass
     conn.close()
 
     print(json.dumps({

@@ -12,6 +12,10 @@ data/*
 cache/
 cache/*
 
+# Carpeta de aislamiento de miniaturas y thumbnails (<1 KB)
+miniaturas/
+miniaturas/*
+
 # ========================================
 # DEPENDENCIAS Y ENTORNO
 # ========================================

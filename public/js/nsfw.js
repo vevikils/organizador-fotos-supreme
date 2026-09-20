@@ -155,7 +155,20 @@ const nsfwManagerClient = {
         this.isScanning = true;
         this.showScanBanner(true);
         this.updateScanProgress(data);
-        this.updateBadge();
+        // Actualizar el badge directamente con el conteo enviado por SSE sin hacer fetch HTTP en cada imagen
+        if (data.nsfwTotal !== undefined) {
+          const badge = document.getElementById('nsfw-badge');
+          if (badge) {
+            if (data.nsfwTotal > 0) {
+              badge.textContent = data.nsfwTotal;
+              badge.style.display = 'inline-block';
+            } else {
+              badge.style.display = 'none';
+            }
+          }
+          const statNsfw = document.getElementById('stat-nsfw-total');
+          if (statNsfw) statNsfw.textContent = data.nsfwTotal;
+        }
       } catch (err) {}
     });
 

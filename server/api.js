@@ -37,7 +37,7 @@ router.get('/photos', (req, res) => {
     const {
       limit = 80, offset = 0, year, month, category, color, camera,
       city, country, search, favorite, albumId, personId, sort, nsfw,
-      is_ai, is_tiny, exclude_tiny, max_res
+      is_ai, isAi, is_tiny, isTiny, exclude_tiny, excludeTiny, max_res
     } = req.query;
 
     const result = queryPhotos({
@@ -56,11 +56,21 @@ router.get('/photos', (req, res) => {
       personId: personId ? parseInt(personId, 10) : null,
       sort,
       nsfwFilter: nsfw || 'all',
-      isAi: is_ai,
-      isTiny: is_tiny,
-      excludeTiny: exclude_tiny === '1' || exclude_tiny === 'true'
+      is_ai: is_ai !== undefined ? is_ai : isAi,
+      is_tiny: is_tiny !== undefined ? is_tiny : isTiny,
+      exclude_tiny: exclude_tiny !== undefined ? (exclude_tiny === '1' || exclude_tiny === 'true') : (excludeTiny !== undefined ? (excludeTiny === '1' || excludeTiny === 'true') : null),
+      max_res
     });
     res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/photos/migrate-miniaturas', async (req, res) => {
+  try {
+    const result = await scanner.migrateExistingMiniaturas();
+    res.json({ success: true, ...result });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

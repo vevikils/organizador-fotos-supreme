@@ -7,7 +7,7 @@ const exifr = require('exifr');
 const { imageSize } = require('image-size');
 const { Jimp } = require('jimp');
 
-const { db, stmts, CACHE_DIR } = require('./db');
+const { db, dbReady, stmts, CACHE_DIR, MINIATURAS_DIR } = require('./db');
 const { reverseGeocode } = require('./geocoder');
 
 const SUPPORTED_EXTENSIONS = new Set([
@@ -18,6 +18,95 @@ const IGNORED_DIRECTORIES = new Set([
   'node_modules', '.git', '$recycle.bin', 'appdata', 'temp', 'windows', 'program files',
   'system volume information', '.cache', '.vscode', '.gemini'
 ]);
+
+
+function isProtectedSystemPath(filePath) {
+  const lower = filePath.toLowerCase();
+  const protectedDirs = [
+    '\\appdata\\', '/appdata/',
+    '\\program files', '/program files',
+    '\\programdata\\', '/programdata/',
+    '\\windows\\', '/windows/',
+    '\\system32\\', '/system32/',
+    '\\node_modules\\', '/node_modules/',
+    '\\$recycle.bin\\', '/$recycle.bin/',
+    'accountpictures', 'account pictures',
+    '\\users\\public\\', '/users/public/'
+  ];
+  return protectedDirs.some(p => lower.includes(p));
+}
+
+function isThumbnailFile({ fileSize, width, height, fileName, filePath }) {
+  if (fileSize < 1024) return true; // < 1 KB estrictamente
+  const lowerName = fileName.toLowerCase();
+  const lowerPath = filePath.toLowerCase();
+
+  const thumbNamePatterns = [
+    'thumb', 'thumbnail', 'miniatur', 'icon-', 'favicon', 'albumart',
+    'thumbcache', '_thumb', '.thumb', 'preview_', 'cover_thumb',
+    'small_', '_tiny', '-thumb'
+  ];
+  if (thumbNamePatterns.some(p => lowerName.includes(p))) return true;
+
+  if (
+    lowerPath.includes('\\thumbnails\\') || lowerPath.includes('/thumbnails/') ||
+    lowerPath.includes('\\.thumbnails\\') || lowerPath.includes('/.thumbnails/') ||
+    lowerPath.includes('\\miniaturas\\') || lowerPath.includes('/miniaturas/') ||
+    lowerPath.includes('\\thumbcache\\') || lowerPath.includes('/thumbcache/')
+  ) {
+    return true;
+  }
+
+  if (width > 0 && height > 0) {
+    if (width <= 150 && height <= 150) return true;
+    if (width <= 64 || height <= 64) return true;
+    if (width * height <= 22500) return true;
+  }
+
+  return false;
+}
+
+async function moveThumbnailToFolder(currentPath, targetDir = MINIATURAS_DIR) {
+  if (!fs.existsSync(currentPath)) return currentPath;
+  const normalizedCurrent = path.normalize(currentPath);
+  const normalizedTargetDir = path.normalize(targetDir);
+
+  if (normalizedCurrent.startsWith(normalizedTargetDir)) {
+    return currentPath;
+  }
+  if (isProtectedSystemPath(normalizedCurrent)) {
+    return currentPath;
+  }
+
+  if (!fs.existsSync(normalizedTargetDir)) {
+    await fs.promises.mkdir(normalizedTargetDir, { recursive: true });
+  }
+
+  const baseName = path.basename(currentPath);
+  const ext = path.extname(baseName);
+  const nameWithoutExt = path.basename(baseName, ext);
+
+  let destPath = path.join(normalizedTargetDir, baseName);
+  let counter = 1;
+  while (fs.existsSync(destPath) && path.normalize(destPath) !== normalizedCurrent) {
+    destPath = path.join(normalizedTargetDir, `${nameWithoutExt}_${counter}${ext}`);
+    counter++;
+  }
+
+  try {
+    await fs.promises.rename(normalizedCurrent, destPath);
+    return destPath;
+  } catch (err) {
+    try {
+      await fs.promises.copyFile(normalizedCurrent, destPath);
+      await fs.promises.unlink(normalizedCurrent);
+      return destPath;
+    } catch (e) {
+      console.error('[Scanner Mover Miniatura Error]:', e.message);
+      return currentPath;
+    }
+  }
+}
 
 class PhotoScanner extends EventEmitter {
   constructor() {
@@ -320,17 +409,34 @@ class PhotoScanner extends EventEmitter {
       }
     }
 
-    const sha256 = await this.computeSha256(filePath);
-    const visuals = await this.processVisuals(filePath, sha256);
-    const category = this.classifyPhoto({
-      fileName, width, height, aspectRatio, cameraMake, cameraModel, timeOfDay, iso, shutterSpeed
+    const isTiny = isThumbnailFile({ fileSize: stats.size, width, height, fileName, filePath }) ? 1 : 0;
+
+    let targetFilePath = filePath;
+    let targetFileName = fileName;
+
+    // Si es miniatura o < 1 KB, mover fisicamente a la carpeta dedicada de miniaturas si no esta protegida
+    if (isTiny) {
+      try {
+        const movedPath = await moveThumbnailToFolder(filePath, MINIATURAS_DIR);
+        if (movedPath && movedPath !== filePath) {
+          targetFilePath = movedPath;
+          targetFileName = path.basename(movedPath);
+        }
+      } catch (e) {
+        console.error('[Scanner]: Error moviendo miniatura a carpeta dedicada:', e.message);
+      }
+    }
+
+    const sha256 = await this.computeSha256(targetFilePath);
+    const visuals = await this.processVisuals(targetFilePath, sha256);
+    let category = isTiny ? 'miniaturas' : this.classifyPhoto({
+      fileName: targetFileName, width, height, aspectRatio, cameraMake, cameraModel, timeOfDay, iso, shutterSpeed
     });
 
-    const aiInfo = this.detectAi(bufferHead, exifData, fileName, filePath);
-    const isTiny = (stats.size < 1024) || (width > 0 && width <= 64 && height <= 64) || filePath.toLowerCase().includes('\\thumbnails\\') || filePath.toLowerCase().includes('/thumbnails/') ? 1 : 0;
+    const aiInfo = this.detectAi(bufferHead, exifData, targetFileName, targetFilePath);
 
     stmts.upsertPhoto.run(
-      filePath, fileName, stats.size, mimeType,
+      targetFilePath, targetFileName, stats.size, mimeType,
       dateTaken.toISOString(), stats.mtime.toISOString(), year, month, day, hour, timeOfDay,
       width, height, aspectRatio, orientation,
       cameraMake, cameraModel, lensModel, focalLength, aperture, shutterSpeed, iso,
@@ -342,7 +448,58 @@ class PhotoScanner extends EventEmitter {
     return { skipped: false, isNew: !existing };
   }
 
+
+  async migrateExistingMiniaturas() {
+    await dbReady;
+    console.log('[Scanner]: Iniciando migracion y aislamiento de miniaturas existentes...');
+    let movedCount = 0;
+    let updatedCount = 0;
+
+    // 1. Actualizar marcas en la base de datos de manera inmediata
+    try {
+      db.exec(`
+        UPDATE photos 
+        SET is_tiny = 1, category = 'miniaturas' 
+        WHERE (file_size < 1024 OR is_tiny = 1 OR width <= 150 AND height <= 150 AND width > 0)
+        AND category != 'miniaturas';
+      `);
+    } catch (e) {}
+
+    // 2. Mover archivos fisicos a la carpeta de miniaturas (excluyendo rutas protegidas de programas)
+    const rows = db.prepare(`
+      SELECT id, file_path, file_name, file_size, width, height 
+      FROM photos 
+      WHERE is_deleted = 0 AND (is_tiny = 1 OR file_size < 1024)
+      LIMIT 5000
+    `).all();
+
+    for (const row of rows) {
+      if (!fs.existsSync(row.file_path)) continue;
+      if (isProtectedSystemPath(row.file_path)) continue;
+
+      const normalizedCurrent = path.normalize(row.file_path);
+      const normalizedTarget = path.normalize(MINIATURAS_DIR);
+      if (normalizedCurrent.startsWith(normalizedTarget)) continue;
+
+      try {
+        const newPath = await moveThumbnailToFolder(row.file_path, MINIATURAS_DIR);
+        if (newPath && newPath !== row.file_path) {
+          const newName = path.basename(newPath);
+          db.prepare('UPDATE photos SET file_path = ?, file_name = ?, is_tiny = 1, category = \'miniaturas\' WHERE id = ?').run(newPath, newName, row.id);
+          movedCount++;
+        }
+      } catch (err) {
+        console.error(`Error migrando miniatura ${row.file_name}:`, err.message);
+      }
+      updatedCount++;
+    }
+
+    db.save();
+    return { movedCount, totalChecked: rows.length };
+  }
+
   async scanFolder(folderPath) {
+    await dbReady;
     if (this.isScanning) throw new Error('Ya hay un escaneo en curso');
     this.isScanning = true;
     this.isPaused = false;
@@ -396,4 +553,4 @@ class PhotoScanner extends EventEmitter {
 }
 
 const scanner = new PhotoScanner();
-module.exports = { scanner, PhotoScanner };
+module.exports = { scanner, PhotoScanner, isThumbnailFile, moveThumbnailToFolder };

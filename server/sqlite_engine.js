@@ -187,11 +187,39 @@ class SqlEngine {
       if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
       const tempPath = this.dbPath + '.tmp';
       fs.writeFileSync(tempPath, Buffer.from(data));
-      fs.renameSync(tempPath, this.dbPath);
+      try {
+        fs.renameSync(tempPath, this.dbPath);
+      } catch (renameErr) {
+        fs.copyFileSync(tempPath, this.dbPath);
+        try { fs.unlinkSync(tempPath); } catch (e) {}
+      }
       this.dirty = false;
     } catch (e) {
       console.error('Error guardando base de datos SQLite a disco:', e);
     }
+  }
+
+  reload() {
+    if (this.saveTimeout) {
+      clearTimeout(this.saveTimeout);
+      this.saveTimeout = null;
+    }
+    if (fs.existsSync(this.dbPath)) {
+      try {
+        const buffer = fs.readFileSync(this.dbPath);
+        if (this.rawDb) {
+          try { this.rawDb.close(); } catch (e) {}
+        }
+        this.rawDb = new this.SQL.Database(buffer);
+        this.epoch++;
+        this.dirty = false;
+        return true;
+      } catch (err) {
+        console.error('Error recargando base de datos SQLite desde disco:', err.message);
+        return false;
+      }
+    }
+    return false;
   }
 
   close() {

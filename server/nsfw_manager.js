@@ -1,6 +1,6 @@
 const { spawn } = require('child_process');
 const path = require('path');
-const { stmts } = require('./db');
+const { db, stmts } = require('./db');
 
 class NsfwManager {
   constructor() {
@@ -17,6 +17,7 @@ class NsfwManager {
       lastLabel: 'sfw'
     };
     this.subscribers = new Set();
+    this.lastBroadcastTime = 0;
   }
 
   broadcast(event, data) {
@@ -60,6 +61,9 @@ class NsfwManager {
 
     const scriptPath = path.join(__dirname, 'nsfw_worker.py');
     const pythonExe = 'python';
+
+    // Asegurar que cualquier cambio en memoria este guardado en disco antes de que Python acceda
+    try { db.save(); } catch (e) {}
 
     let initialTotal = 0;
     try {
@@ -126,6 +130,13 @@ class NsfwManager {
         this.isScanning = false;
         this.process = null;
         this.currentStats.isScanning = false;
+        try {
+          if (db.getEngine() && typeof db.getEngine().reload === 'function') {
+            db.getEngine().reload();
+          }
+        } catch (e) {
+          console.error('[NSFW Manager]: Error recargando DB tras analisis:', e);
+        }
         this.broadcast('complete', this.getStatus());
       });
 
@@ -164,6 +175,11 @@ class NsfwManager {
       this.isScanning = false;
       this.process = null;
       this.currentStats.isScanning = false;
+      try {
+        if (db.getEngine() && typeof db.getEngine().reload === 'function') {
+          db.getEngine().reload();
+        }
+      } catch (e) {}
       this.broadcast('stopped', this.getStatus());
       return { success: true, message: 'Análisis detenido' };
     } catch (e) {
@@ -201,17 +217,22 @@ class NsfwManager {
       this.currentStats.lastScore = data.score;
       this.currentStats.lastLabel = data.label;
 
-      this.broadcast('progress', {
-        photoId: data.id,
-        fileName: data.file_name,
-        isNsfw: data.is_nsfw,
-        score: data.score,
-        label: data.label,
-        processed: data.processed,
-        total: data.total,
-        percentage: this.currentStats.percentage,
-        nsfwTotal: data.nsfw_total
-      });
+      const now = Date.now();
+      // Transmision SSE con control de tasa (max cada 200ms o deteccion NSFW inmediata o completado)
+      if (data.is_nsfw || (now - this.lastBroadcastTime >= 200) || (data.processed >= data.total)) {
+        this.lastBroadcastTime = now;
+        this.broadcast('progress', {
+          photoId: data.id,
+          fileName: data.file_name,
+          isNsfw: data.is_nsfw,
+          score: data.score,
+          label: data.label,
+          processed: data.processed,
+          total: data.total,
+          percentage: this.currentStats.percentage,
+          nsfwTotal: data.nsfw_total
+        });
+      }
     } else if (data.type === 'complete') {
       this.currentStats.percentage = 100;
       this.broadcast('complete', this.getStatus());

@@ -16,8 +16,8 @@ Si solo quieres usar la aplicación en tu ordenador, **no necesitas instalar Nod
 
 | Tipo de Descarga | Archivo | Tamaño | Descripción |
 | :--- | :--- | :--- | :--- |
-| 🚀 **Instalador Oficial (Recomendado)** | [**Organizador-Supremo-de-Fotos-Setup-1.0.0.exe**](https://github.com/vevikils/organizador-fotos-supreme/releases/download/v1.0.0/Organizador-Supremo-de-Fotos-Setup-1.0.0.exe) | ~120 MB | Asistente de instalación estándar de Windows con accesos directos en Escritorio y Menú Inicio. |
-| 🎒 **Versión Portable** | [**Organizador-Supremo-de-Fotos-1.0.0-Portable.exe**](https://github.com/vevikils/organizador-fotos-supreme/releases/download/v1.0.0/Organizador-Supremo-de-Fotos-1.0.0-Portable.exe) | ~120 MB | Ejecutable único sin instalación; ejecútalo directamente desde cualquier carpeta o pendrive. |
+| 🚀 **Instalador Oficial (Recomendado)** | [**Organizador-Supremo-de-Fotos-Setup-1.1.0.exe**](https://github.com/vevikils/organizador-fotos-supreme/releases/download/v1.1.0/Organizador-Supremo-de-Fotos-Setup-1.1.0.exe) | ~120 MB | Asistente de instalación estándar de Windows con accesos directos en Escritorio y Menú Inicio. |
+| 🎒 **Versión Portable** | [**Organizador-Supremo-de-Fotos-1.1.0-Portable.exe**](https://github.com/vevikils/organizador-fotos-supreme/releases/download/v1.1.0/Organizador-Supremo-de-Fotos-1.1.0-Portable.exe) | ~120 MB | Ejecutable único sin instalación; ejecútalo directamente desde cualquier carpeta o pendrive. |
 
 👉 **[Ver todas las versiones en GitHub Releases](https://github.com/vevikils/organizador-fotos-supreme/releases)**
 
