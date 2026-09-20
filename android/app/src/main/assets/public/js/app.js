@@ -35,11 +35,36 @@ const App = {
     });
 
     const mobileBtn = document.getElementById('btn-mobile-menu');
-    if (mobileBtn) {
-      mobileBtn.addEventListener('click', () => {
-        document.getElementById('sidebar').classList.toggle('open');
+    const sidebarBackdrop = document.getElementById('sidebar-backdrop');
+    const sidebarElem = document.getElementById('sidebar');
+    const bottomMenuBtn = document.getElementById('btn-bottom-menu');
+
+    const toggleMobileMenu = () => {
+      if (!sidebarElem) return;
+      const isOpen = sidebarElem.classList.toggle('open');
+      if (sidebarBackdrop) {
+        if (isOpen) sidebarBackdrop.classList.add('active');
+        else sidebarBackdrop.classList.remove('active');
+      }
+    };
+
+    if (mobileBtn) mobileBtn.addEventListener('click', toggleMobileMenu);
+    if (bottomMenuBtn) bottomMenuBtn.addEventListener('click', toggleMobileMenu);
+    if (sidebarBackdrop) {
+      sidebarBackdrop.addEventListener('click', () => {
+        if (sidebarElem) sidebarElem.classList.remove('open');
+        sidebarBackdrop.classList.remove('active');
       });
     }
+
+    // Bind bottom nav items
+    const bottomNavLinks = document.querySelectorAll('.bottom-nav-item[data-view]');
+    bottomNavLinks.forEach(bitem => {
+      bitem.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.switchView(bitem.dataset.view);
+      });
+    });
 
     const btnReset = document.getElementById('btn-reset-all-filters');
     if (btnReset) {
@@ -62,6 +87,18 @@ const App = {
       if (item.dataset.view === viewName) item.classList.add('active');
       else item.classList.remove('active');
     });
+
+    const bottomItems = document.querySelectorAll('.bottom-nav-item[data-view]');
+    bottomItems.forEach(item => {
+      if (item.dataset.view === viewName) item.classList.add('active');
+      else item.classList.remove('active');
+    });
+
+    // Close mobile drawer and backdrop on view change
+    const sidebarEl = document.getElementById('sidebar');
+    const backdropEl = document.getElementById('sidebar-backdrop');
+    if (sidebarEl) sidebarEl.classList.remove('open');
+    if (backdropEl) backdropEl.classList.remove('active');
 
     const sidebar = document.getElementById('sidebar');
     if (sidebar) sidebar.classList.remove('open');

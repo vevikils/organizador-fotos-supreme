@@ -2,7 +2,7 @@
 <html lang="es" data-theme="dark">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Organizador Supremo de Fotos</title>
   <link rel="icon" type="image/png" href="icons/icon.png">
   
@@ -996,6 +996,34 @@
     </div>
   </div>
 
+
+  
+  <!-- BACKDROP PARA DRAWER MÓVIL -->
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
+  <!-- BARRA DE NAVEGACIÓN INFERIOR PARA SMARTPHONES -->
+  <nav class="mobile-bottom-nav" id="mobile-bottom-nav">
+    <a href="#timeline" class="bottom-nav-item active" data-view="timeline" id="bnav-timeline">
+      <span class="material-symbols-outlined">photo_library</span>
+      <span class="bnav-label">Fotos</span>
+    </a>
+    <a href="#albums" class="bottom-nav-item" data-view="albums" id="bnav-albums">
+      <span class="material-symbols-outlined">photo_album</span>
+      <span class="bnav-label">Álbumes</span>
+    </a>
+    <a href="#categories" class="bottom-nav-item" data-view="categories" id="bnav-categories">
+      <span class="material-symbols-outlined">explore</span>
+      <span class="bnav-label">Explorar</span>
+    </a>
+    <a href="#duplicates" class="bottom-nav-item" data-view="duplicates" id="bnav-duplicates">
+      <span class="material-symbols-outlined">cleaning_services</span>
+      <span class="bnav-label">Limpieza</span>
+    </a>
+    <button class="bottom-nav-item" id="btn-bottom-menu" aria-label="Más opciones">
+      <span class="material-symbols-outlined">menu</span>
+      <span class="bnav-label">Más</span>
+    </button>
+  </nav>
 
   </body>
 </html>

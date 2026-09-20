@@ -1706,3 +1706,397 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .enhance-card-title {
   margin-bottom: 6px !important;
 }
+
+
+/* ===================================================
+   OPTIMIZACIONES EXCLUSIVAS PARA MÓVIL Y SMARTPHONES
+   =================================================== */
+.mobile-bottom-nav {
+  display: none;
+}
+
+.sidebar-backdrop {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  :root {
+    --sidebar-width: 280px;
+    --topbar-height: 52px;
+  }
+
+  body {
+    font-size: 14px;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior-y: none;
+  }
+
+  .app-layout {
+    flex-direction: column;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* Barra Lateral / Drawer Flotante en Móvil */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: var(--sidebar-width);
+    max-width: 82vw;
+    height: 100vh;
+    background-color: var(--bg-secondary);
+    border-right: 1px solid var(--border-color);
+    box-shadow: 8px 0 32px rgba(0, 0, 0, 0.75);
+    transform: translateX(-100%);
+    transition: transform 0.26s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 2500;
+    overflow-y: auto;
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .sidebar-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 2400;
+    opacity: 0;
+    transition: opacity 0.26s ease;
+  }
+
+  .sidebar-backdrop.active {
+    display: block;
+    opacity: 1;
+  }
+
+  /* Barra Superior en Móviles */
+  .top-bar {
+    height: 52px;
+    padding: 6px 10px;
+    gap: 8px;
+    background-color: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .mobile-menu-toggle {
+    display: flex !important;
+    width: 38px;
+    height: 38px;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border-radius: var(--radius-full);
+  }
+
+  .search-container {
+    height: 38px;
+    padding: 0 10px;
+    border-radius: var(--radius-full);
+    flex: 1;
+    min-width: 0;
+  }
+
+  .search-input {
+    font-size: 0.85rem;
+  }
+
+  .top-controls {
+    display: none !important;
+  }
+
+  /* Contenedor Principal */
+  .main-content {
+    flex: 1;
+    height: calc(100vh - 52px - 58px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 0 0 76px 0;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .content-body {
+    padding: 0 0 60px 0;
+  }
+
+  .view-panel {
+    padding: 8px 10px 80px 10px;
+  }
+
+  .view-header {
+    margin-bottom: 10px;
+    padding: 2px 4px;
+  }
+
+  .view-title {
+    font-size: 1.22rem !important;
+  }
+
+  .view-subtitle {
+    font-size: 0.78rem !important;
+  }
+
+  /* CUADRÍCULA DE FOTOS INMERSIVA (3 COLUMNAS ESTILO GOOGLE FOTOS) */
+  .photo-grid-container {
+    padding: 0;
+    margin: 0;
+  }
+
+  .timeline-date-header {
+    position: sticky;
+    top: 0;
+    z-index: 15;
+    background: rgba(18, 18, 18, 0.94);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    padding: 8px 10px;
+    margin: 6px 0 2px 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  .timeline-date-title {
+    font-size: 0.92rem;
+    font-weight: 700;
+  }
+
+  .timeline-count {
+    font-size: 0.72rem;
+    padding: 2px 6px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: var(--radius-full);
+  }
+
+  .photo-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 2px !important;
+    padding: 2px !important;
+    width: 100% !important;
+  }
+
+  .density-compact .photo-grid {
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 2px !important;
+  }
+
+  .density-large .photo-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 3px !important;
+  }
+
+  .photo-card {
+    aspect-ratio: 1 !important;
+    border-radius: 2px !important;
+    box-shadow: none !important;
+  }
+
+  .photo-card:hover {
+    transform: none !important;
+    box-shadow: none !important;
+  }
+
+  .photo-card:active {
+    opacity: 0.82;
+    transform: scale(0.97);
+  }
+
+  .photo-overlay {
+    display: none; /* No hover en móviles; la foto se abre al tocar */
+  }
+
+  .timeline-scrubber {
+    display: none !important;
+  }
+
+  /* BARRA DE NAVEGACIÓN INFERIOR PARA MÓVILES */
+  .mobile-bottom-nav {
+    display: flex !important;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 58px;
+    background: rgba(20, 20, 24, 0.97);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-top: 1px solid var(--border-color);
+    z-index: 2000;
+    justify-content: space-around;
+    align-items: center;
+    padding: 0 4px;
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+
+  .bottom-nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    height: 100%;
+    color: var(--text-secondary);
+    font-size: 0.68rem;
+    font-weight: 500;
+    background: none;
+    border: none;
+    text-decoration: none;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: color 0.15s ease, transform 0.1s ease;
+  }
+
+  .bottom-nav-item .material-symbols-outlined {
+    font-size: 22px;
+    transition: transform 0.15s ease;
+  }
+
+  .bottom-nav-item.active {
+    color: var(--accent-primary);
+    font-weight: 700;
+  }
+
+  .bottom-nav-item.active .material-symbols-outlined {
+    transform: scale(1.12);
+  }
+
+  .bottom-nav-item:active {
+    transform: scale(0.92);
+  }
+
+  /* Tarjetas de Álbumes, Categorías y Cámaras */
+  .categories-cards-grid, .cameras-cards-grid, .albums-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+  }
+
+  .category-cover {
+    height: 100px !important;
+  }
+
+  .category-body {
+    padding: 10px !important;
+  }
+
+  .category-name {
+    font-size: 0.85rem !important;
+  }
+
+  .colors-palette-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+  }
+
+  /* Duplicados en Móvil */
+  .tabs-bar {
+    overflow-x: auto;
+    white-space: nowrap;
+    gap: 4px;
+    padding-bottom: 6px;
+    scrollbar-width: none;
+  }
+
+  .tabs-bar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tab-btn {
+    padding: 8px 12px;
+    font-size: 0.82rem;
+  }
+
+  .dup-photos-row {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 6px !important;
+  }
+
+  .dup-toolbar {
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 10px;
+  }
+
+  .folders-manager {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  /* LIGHTBOX EN MÓVIL */
+  .lightbox-top-bar {
+    height: 50px !important;
+    padding: 0 8px !important;
+  }
+
+  .top-bar-right {
+    gap: 4px !important;
+  }
+
+  .top-bar-right .btn-enhance-light span:last-child {
+    display: none;
+  }
+
+  .btn-icon-light {
+    width: 36px !important;
+    height: 36px !important;
+  }
+
+  .lb-nav-btn {
+    width: 38px !important;
+    height: 38px !important;
+    background-color: rgba(0, 0, 0, 0.35) !important;
+  }
+
+  .lb-nav-btn.prev { left: 8px !important; }
+  .lb-nav-btn.next { right: 8px !important; }
+
+  /* Info Drawer como Bottom Sheet */
+  .lightbox-info-drawer {
+    top: auto !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    max-height: 75vh !important;
+    border-radius: 20px 20px 0 0 !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.15) !important;
+    border-left: none !important;
+    transform: translateY(100%) !important;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.8) !important;
+  }
+
+  .lightbox-info-drawer.open {
+    transform: translateY(0) !important;
+  }
+
+  /* Stats Cards en NSFW */
+  .nsfw-stats-cards {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 6px !important;
+  }
+
+  .stat-card {
+    padding: 8px 4px !important;
+    text-align: center;
+  }
+
+  .stat-num {
+    font-size: 1.1rem !important;
+  }
+
+  .stat-desc {
+    font-size: 0.65rem !important;
+  }
+}

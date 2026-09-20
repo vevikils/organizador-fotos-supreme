@@ -15,15 +15,18 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -71,8 +74,14 @@ fun AppMainScreen(
 ) {
   var isScanningDevice by remember { mutableStateOf(false) }
   var scanProgress by remember { mutableStateOf("") }
+  var totalPhotosCount by remember { mutableIntStateOf(0) }
   var webViewRef by remember { mutableStateOf<WebView?>(null) }
   val coroutineScope = rememberCoroutineScope()
+
+  fun refreshStats() {
+    val stats = db.getStats()
+    totalPhotosCount = stats.optInt("total_photos", 0)
+  }
 
   val permissionLauncher = rememberLauncherForActivityResult(
     ActivityResultContracts.RequestMultiplePermissions()
@@ -82,9 +91,10 @@ fun AppMainScreen(
       coroutineScope.launch {
         isScanningDevice = true
         scanner.scanDevicePhotos { proc, tot, _ ->
-          scanProgress = "$proc / $tot fotos"
+          scanProgress = "$proc / $tot"
         }
         isScanningDevice = false
+        refreshStats()
         webViewRef?.reload()
       }
     }
@@ -105,9 +115,10 @@ fun AppMainScreen(
       coroutineScope.launch {
         isScanningDevice = true
         scanner.scanDevicePhotos { proc, tot, _ ->
-          scanProgress = "$proc / $tot fotos"
+          scanProgress = "$proc / $tot"
         }
         isScanningDevice = false
+        refreshStats()
         webViewRef?.reload()
       }
     } else {
@@ -116,8 +127,8 @@ fun AppMainScreen(
   }
 
   LaunchedEffect(Unit) {
-    val stats = db.getStats()
-    if (stats.optInt("total_photos", 0) == 0) {
+    refreshStats()
+    if (totalPhotosCount == 0) {
       checkAndStartScan()
     }
   }
@@ -131,20 +142,26 @@ fun AppMainScreen(
       TopAppBar(
         title = {
           Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
+            Image(
+              painter = painterResource(id = R.drawable.app_logo),
+              contentDescription = "Logo Fotos Supreme",
               modifier = Modifier
-                .size(10.dp)
-                .clip(CircleShape)
-                .background(Color(0xFF4CAF50))
+                .size(34.dp)
+                .clip(RoundedCornerShape(8.dp))
             )
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(10.dp))
             Column {
               Text(
                 "Fotos Supreme",
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                style = MaterialTheme.typography.titleMedium.copy(
+                  fontWeight = FontWeight.Bold,
+                  fontSize = 16.sp
+                )
               )
               Text(
-                if (isScanningDevice) "Escaneando móvil: $scanProgress" else "Móvil Escaneado y Organizado",
+                if (isScanningDevice) "Escaneando: $scanProgress fotos"
+                else if (totalPhotosCount > 0) "$totalPhotosCount fotos organizadas"
+                else "Móvil listo para escanear",
                 style = MaterialTheme.typography.bodySmall.copy(
                   fontSize = 11.sp,
                   color = if (isScanningDevice) Color(0xFFFFB74D) else Color(0xFF81C784)
@@ -161,18 +178,28 @@ fun AppMainScreen(
               containerColor = MaterialTheme.colorScheme.primaryContainer,
               contentColor = MaterialTheme.colorScheme.onPrimaryContainer
             ),
-            modifier = Modifier.padding(end = 6.dp),
+            modifier = Modifier.padding(end = 4.dp),
             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
           ) {
-            Text(if (isScanningDevice) "Escaneando..." else "📱 Escanear Móvil", fontSize = 12.sp)
+            Text(
+              if (isScanningDevice) "Escaneando..." else "📱 Escanear",
+              fontSize = 12.sp,
+              fontWeight = FontWeight.SemiBold
+            )
           }
 
-          IconButton(onClick = { webViewRef?.reload() }) {
-            Text("🔄", fontSize = 18.sp)
+          IconButton(
+            onClick = {
+              refreshStats()
+              webViewRef?.reload()
+            },
+            modifier = Modifier.size(36.dp)
+          ) {
+            Text("🔄", fontSize = 16.sp)
           }
         },
         colors = TopAppBarDefaults.topAppBarColors(
-          containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp)
+          containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp)
         )
       )
     }
@@ -196,12 +223,13 @@ fun AppMainScreen(
               domStorageEnabled = true
               loadWithOverviewMode = true
               useWideViewPort = true
-              setSupportZoom(true)
-              builtInZoomControls = true
+              setSupportZoom(false)
+              builtInZoomControls = false
               displayZoomControls = false
               allowFileAccess = true
               allowContentAccess = true
               mediaPlaybackRequiresUserGesture = false
+              textZoom = 100
             }
 
             webViewClient = object : WebViewClient() {
