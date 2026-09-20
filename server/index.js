@@ -14,6 +14,30 @@ app.use(cors());
 app.use(express.json());
 app.use('/cache', express.static(path.join(STORAGE_ROOT, 'cache')));
 app.use('/api', apiRouter);
+
+const os = require('os');
+function getLocalIpAddress() {
+  const interfaces = os.networkInterfaces();
+  for (const name of Object.keys(interfaces)) {
+    for (const iface of interfaces[name]) {
+      if (iface.family === 'IPv4' && !iface.internal && !iface.address.startsWith('169.254')) {
+        return iface.address;
+      }
+    }
+  }
+  return '127.0.0.1';
+}
+
+app.get('/api/server-info', (req, res) => {
+  res.json({
+    status: 'ok',
+    app: 'Organizador Supremo de Fotos',
+    version: '1.1.1',
+    localIp: getLocalIpAddress(),
+    port: PORT
+  });
+});
+
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 app.get('*', (req, res) => {
@@ -27,14 +51,14 @@ async function startServer() {
     await dbReady;
   }
   return new Promise((resolve, reject) => {
-    server.listen(PORT, '127.0.0.1', () => {
+    server.listen(PORT, '0.0.0.0', () => {
       console.log(`[Servidor] Organizador de Fotos iniciado en http://127.0.0.1:${PORT}`);
       resolve({ server, port: PORT });
     });
     server.on('error', err => {
       if (err.code === 'EADDRINUSE') {
         const nextPort = Number(PORT) + 1;
-        server.listen(nextPort, '127.0.0.1', () => {
+        server.listen(nextPort, '0.0.0.0', () => {
           console.log(`[Servidor] Organizador de Fotos iniciado en http://127.0.0.1:${nextPort}`);
           resolve({ server, port: nextPort });
         });

@@ -16,8 +16,9 @@ Si solo quieres usar la aplicación en tu ordenador, **no necesitas instalar Nod
 
 | Tipo de Descarga | Archivo | Tamaño | Descripción |
 | :--- | :--- | :--- | :--- |
-| 🚀 **Instalador Oficial (Recomendado)** | [**Organizador-Supremo-de-Fotos-Setup-1.1.1.exe**](https://github.com/vevikils/organizador-fotos-supreme/releases/download/v1.1.1/Organizador-Supremo-de-Fotos-Setup-1.1.1.exe) | ~120 MB | Asistente de instalación estándar de Windows con accesos directos en Escritorio y Menú Inicio. |
-| 🎒 **Versión Portable** | [**Organizador-Supremo-de-Fotos-1.1.1-Portable.exe**](https://github.com/vevikils/organizador-fotos-supreme/releases/download/v1.1.1/Organizador-Supremo-de-Fotos-1.1.1-Portable.exe) | ~120 MB | Ejecutable único sin instalación; ejecútalo directamente desde cualquier carpeta o pendrive. |
+| 🚀 **Instalador Oficial Windows** | [**Organizador-Supremo-de-Fotos-Setup-1.1.1.exe**](https://github.com/vevikils/organizador-fotos-supreme/releases/download/v1.1.1/Organizador-Supremo-de-Fotos-Setup-1.1.1.exe) | ~120 MB | Asistente de instalación estándar de Windows con accesos directos en Escritorio y Menú Inicio. |
+| 🎒 **Versión Portable Windows** | [**Organizador-Supremo-de-Fotos-1.1.1-Portable.exe**](https://github.com/vevikils/organizador-fotos-supreme/releases/download/v1.1.1/Organizador-Supremo-de-Fotos-1.1.1-Portable.exe) | ~120 MB | Ejecutable único sin instalación; ejecútalo directamente desde cualquier carpeta o pendrive. |
+| 📱 **App Móvil para Android (APK)** | [**Fotos-Supreme-Android.apk**](https://github.com/vevikils/organizador-fotos-supreme/releases/download/v1.1.1/Fotos-Supreme-Android.apk) | ~12 MB | App nativa con Material 3 para Android. Conéctate desde tu móvil por Wi-Fi a tu biblioteca de fotos sin límites. |
 
 👉 **[Ver todas las versiones en GitHub Releases](https://github.com/vevikils/organizador-fotos-supreme/releases)**
 

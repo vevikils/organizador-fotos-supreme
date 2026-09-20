@@ -58,3 +58,10 @@ build/*
 *.exe
 *.zip
 *.blockmap
+
+# Android Build Artifacts & APKs
+*.apk
+android/.gradle/
+android/app/build/
+android/local.properties
+android/.idea/
