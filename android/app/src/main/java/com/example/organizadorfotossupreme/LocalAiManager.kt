@@ -85,6 +85,7 @@ class LocalAiManager(private val context: Context, private val db: LocalDatabase
             }
           }
 
+          db.markFaceScanned(id)
           faceScanProcessed++
           peopleCount = db.getPeopleCount()
           onProgress?.invoke(faceScanProcessed, faceScanTotal, facesFoundCount, peopleCount)

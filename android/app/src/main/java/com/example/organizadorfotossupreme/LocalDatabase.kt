@@ -31,7 +31,8 @@ class LocalDatabase(context: Context) : SQLiteOpenHelper(context, "photos_local.
         sha256 TEXT,
         is_nsfw INTEGER DEFAULT 0,
         nsfw_score REAL DEFAULT 0.0,
-        nsfw_checked INTEGER DEFAULT 0
+        nsfw_checked INTEGER DEFAULT 0,
+        faces_scanned INTEGER DEFAULT 0
       )
     """)
 
@@ -93,6 +94,19 @@ class LocalDatabase(context: Context) : SQLiteOpenHelper(context, "photos_local.
 
     db.execSQL("CREATE INDEX IF NOT EXISTS idx_faces_photo ON faces(photo_id)")
     db.execSQL("CREATE INDEX IF NOT EXISTS idx_faces_person ON faces(person_id)")
+  }
+
+  override fun onOpen(db: SQLiteDatabase) {
+    super.onOpen(db)
+    try {
+      db.execSQL("ALTER TABLE photos ADD COLUMN faces_scanned INTEGER DEFAULT 0")
+    } catch (e: Exception) {}
+    try {
+      db.execSQL("CREATE INDEX IF NOT EXISTS idx_photos_faces_scanned ON photos(faces_scanned)")
+    } catch (e: Exception) {}
+    try {
+      db.execSQL("CREATE INDEX IF NOT EXISTS idx_photos_nsfw_checked ON photos(nsfw_checked)")
+    } catch (e: Exception) {}
   }
 
   fun insertOrUpdatePhoto(
@@ -403,7 +417,7 @@ class LocalDatabase(context: Context) : SQLiteOpenHelper(context, "photos_local.
     val db = readableDatabase
     val list = mutableListOf<JSONObject>()
     val cursor = db.rawQuery(
-      "SELECT id, file_path, file_name FROM photos WHERE is_deleted = 0 AND is_tiny = 0 AND id NOT IN (SELECT DISTINCT photo_id FROM faces) LIMIT 400",
+      "SELECT id, file_path, file_name FROM photos WHERE is_deleted = 0 AND is_tiny = 0 AND faces_scanned = 0",
       null
     )
     while (cursor.moveToNext()) {
@@ -448,6 +462,11 @@ class LocalDatabase(context: Context) : SQLiteOpenHelper(context, "photos_local.
     db.execSQL("UPDATE people SET face_count = face_count + 1 WHERE id = ?", arrayOf(personId.toString()))
   }
 
+    fun markFaceScanned(photoId: Long) {
+    val db = writableDatabase
+    db.execSQL("UPDATE photos SET faces_scanned = 1 WHERE id = ?", arrayOf(photoId.toString()))
+  }
+
   fun getFacesStats(): JSONObject {
     val db = readableDatabase
     val res = JSONObject()
@@ -464,7 +483,7 @@ class LocalDatabase(context: Context) : SQLiteOpenHelper(context, "photos_local.
     fCursor.close()
 
     val uCursor = db.rawQuery(
-      "SELECT COUNT(*) FROM photos WHERE is_deleted = 0 AND is_tiny = 0 AND id NOT IN (SELECT DISTINCT photo_id FROM faces)",
+      "SELECT COUNT(*) FROM photos WHERE is_deleted = 0 AND is_tiny = 0 AND faces_scanned = 0",
       null
     )
     var unclassified = 0
@@ -529,7 +548,7 @@ class LocalDatabase(context: Context) : SQLiteOpenHelper(context, "photos_local.
     val db = readableDatabase
     val list = mutableListOf<JSONObject>()
     val cursor = db.rawQuery(
-      "SELECT id, file_path, file_name FROM photos WHERE is_deleted = 0 AND is_tiny = 0 AND nsfw_checked = 0 LIMIT 400",
+      "SELECT id, file_path, file_name FROM photos WHERE is_deleted = 0 AND is_tiny = 0 AND nsfw_checked = 0",
       null
     )
     while (cursor.moveToNext()) {

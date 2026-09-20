@@ -158,6 +158,14 @@ const NsfwManager = {
     const countText = document.getElementById('ai-scan-count-text');
     const percentText = document.getElementById('ai-scan-percentage-text');
     const progressFill = document.getElementById('ai-scan-progress-fill');
+
+    // Live update stats cards
+    const statNsfw = document.getElementById('stat-nsfw-total');
+    if (statNsfw) statNsfw.textContent = nsfwTotal;
+    const statSfw = document.getElementById('stat-sfw-total');
+    if (statSfw) statSfw.textContent = Math.max(0, processed - nsfwTotal);
+    const statPending = document.getElementById('stat-pending-total');
+    if (statPending && total >= processed) statPending.textContent = Math.max(0, total - processed);
     const statusText = document.getElementById('ai-scan-status-text');
 
     const pct = total > 0 ? Math.min(100, Math.round((processed / total) * 100)) : 0;
