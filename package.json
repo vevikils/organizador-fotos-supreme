@@ -1,6 +1,6 @@
 {
   "name": "organizador-fotos-supreme",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Organizador y clasificador de fotos de escritorio estilo Google Fotos",
   "main": "main.js",
   "scripts": {
@@ -17,7 +17,7 @@
     "exif",
     "duplicates"
   ],
-  "author": "Antigravity",
+  "author": "vevikils",
   "license": "MIT",
   "dependencies": {
     "cors": "^2.8.5",

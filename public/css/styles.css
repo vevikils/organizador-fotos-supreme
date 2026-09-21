@@ -623,9 +623,14 @@ button {
 }
 
 .view-panel {
+  display: none !important;
   padding: 24px 32px;
   max-width: 1700px;
   margin: 0 auto;
+}
+
+.view-panel.active {
+  display: block !important;
 }
 
 .view-header {
@@ -1226,7 +1231,12 @@ button {
   }
 
   .view-panel {
+    display: none !important;
     padding: 8px 10px 80px 10px;
+  }
+
+  .view-panel.active {
+    display: block !important;
   }
 
   .view-header {

@@ -29,7 +29,8 @@ const App = {
 
     const navItems = document.querySelectorAll('.nav-item[data-view]');
     navItems.forEach(item => {
-      item.addEventListener('click', () => {
+      item.addEventListener('click', (e) => {
+        e.preventDefault();
         this.switchView(item.dataset.view);
       });
     });
@@ -104,10 +105,21 @@ const App = {
     if (sidebar) sidebar.classList.remove('open');
 
     const panels = document.querySelectorAll('.view-panel');
-    panels.forEach(p => p.classList.remove('active'));
+    panels.forEach(p => {
+      p.classList.remove('active');
+      p.style.display = 'none';
+    });
 
     const targetPanel = document.getElementById(`view-${viewName}`);
-    if (targetPanel) targetPanel.classList.add('active');
+    if (targetPanel) {
+      targetPanel.classList.add('active');
+      targetPanel.style.display = 'block';
+    }
+
+    // Reset scroll position on view switch
+    const mainContent = document.querySelector('.main-content') || document.getElementById('main-content');
+    if (mainContent) mainContent.scrollTop = 0;
+    window.scrollTo(0, 0);
 
     if (updateHash) window.location.hash = viewName;
 
